@@ -143,8 +143,7 @@ gap:10px;
 flex-wrap:wrap;
 }
 
-.actions > button,
-.actions > a{
+.actions > button{
 flex:1 1 180px;
 }
 
@@ -208,7 +207,7 @@ border-radius:14px;
 table{
 width:100%;
 border-collapse:collapse;
-min-width:900px;
+min-width:980px;
 }
 
 th{
@@ -282,6 +281,16 @@ font-size:12px;
 color:var(--muted);
 }
 
+.role-admin{
+color:#86efac;
+font-weight:700;
+}
+
+.role-user{
+color:#7dd3fc;
+font-weight:700;
+}
+
 @media (max-width:700px){
 header{
 font-size:22px;
@@ -325,6 +334,7 @@ font-size:22px;
 
 <div class="topbar">
 <div class="pill" id="userInfo">Utente: -</div>
+<div class="pill" id="roleInfo">Ruolo: -</div>
 <div class="actions" style="max-width:380px; width:100%;">
 <button class="btn-danger" onclick="logout()">Logout</button>
 </div>
@@ -402,6 +412,13 @@ font-size:22px;
 <label>Cerca nome</label>
 <input id="filterName" placeholder="Scrivi un nome" oninput="renderAll()">
 </div>
+
+<div id="adminFilterWrap" class="hidden">
+<label>Dipendente</label>
+<select id="filterEmployee" onchange="renderAll()">
+<option value="">Tutti</option>
+</select>
+</div>
 </div>
 
 <div class="actions" style="margin-top:12px;">
@@ -446,7 +463,7 @@ font-size:22px;
 <div style="margin-top:16px;">
 <label>Report pronto</label>
 <div id="reportBox" class="report-box">Premi "Genera report"</div>
-<div class="small" style="margin-top:8px;">Per inviare via mail, modifica dentro il codice l'indirizzo del capo nella costante BOSS_EMAIL.</div>
+<div class="small" style="margin-top:8px;">La mail del capo è impostata su m.colurci@gmail.com</div>
 </div>
 </div>
 
@@ -478,6 +495,7 @@ font-size:22px;
 const SUPABASE_URL = "https://nzmgjuwmrvjxpykzawkp.supabase.co"
 const SUPABASE_KEY = "sb_publishable_lwd5Lahd5CirK_RlQmhcBA_PTo6c14v"
 const BOSS_EMAIL = "m.colurci@gmail.com"
+const ADMIN_EMAIL = "m.colurci@gmail.com"
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -485,6 +503,7 @@ let user = null
 let presenze = []
 let editingId = null
 let lastReportText = ""
+let isAdmin = false
 
 function qs(id){
 return document.getElementById(id)
@@ -537,26 +556,59 @@ if(!y || !m || !d) return dateString
 return `${d}/${m}/${y}`
 }
 
+function applyRoleUi(){
+qs("userInfo").textContent = `Utente: ${user?.email || "-"}`
+qs("roleInfo").innerHTML = isAdmin
+? `Ruolo: <span class="role-admin">ADMIN</span>`
+: `Ruolo: <span class="role-user">UTENTE</span>`
+
+if(isAdmin){
+qs("adminFilterWrap").classList.remove("hidden")
+}else{
+qs("adminFilterWrap").classList.add("hidden")
+qs("filterEmployee").value = ""
+}
+}
+
 function showLogin(){
 user = null
+isAdmin = false
+presenze = []
 qs("app").classList.add("hidden")
 qs("loginBox").classList.remove("hidden")
 qs("userInfo").textContent = "Utente: -"
+qs("roleInfo").textContent = "Ruolo: -"
 qs("tabella").innerHTML = ""
+qs("reportBox").textContent = 'Premi "Genera report"'
 }
 
 function showApp(currentUser){
 user = currentUser
+isAdmin = (String(user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase())
+
 qs("loginBox").classList.add("hidden")
 qs("app").classList.remove("hidden")
-qs("userInfo").textContent = `Utente: ${user.email}`
+
+applyRoleUi()
+
 if(!qs("filterMonth").value){
 qs("filterMonth").value = currentMonthValue()
 }
 if(!qs("data").value){
 qs("data").value = todayISO()
 }
+
+if(!isAdmin){
+qs("nome").value = extractNameFromEmail(user.email)
+}
+
 loadPresenze()
+}
+
+function extractNameFromEmail(email){
+if(!email) return ""
+const local = String(email).split("@")[0]
+return local.replaceAll(".", " ").replaceAll("_", " ")
 }
 
 async function checkSession(){
@@ -629,7 +681,7 @@ setAuthStatus("Logout effettuato")
 }
 
 function clearForm(){
-qs("nome").value = ""
+qs("nome").value = isAdmin ? "" : extractNameFromEmail(user?.email || "")
 qs("data").value = todayISO()
 qs("stato").value = "Presente"
 qs("ore").value = ""
@@ -765,19 +817,46 @@ return
 }
 
 presenze = data || []
+populateEmployeeFilter()
 renderAll()
+}
+
+function populateEmployeeFilter(){
+const select = qs("filterEmployee")
+const currentValue = select.value
+
+select.innerHTML = `<option value="">Tutti</option>`
+
+if(!isAdmin) return
+
+const uniqueNames = [...new Set(
+presenze
+.map(r => String(r.nome || "").trim())
+.filter(Boolean)
+)].sort((a,b) => a.localeCompare(b, "it"))
+
+uniqueNames.forEach(name => {
+const option = document.createElement("option")
+option.value = name
+option.textContent = name
+select.appendChild(option)
+})
+
+select.value = currentValue
 }
 
 function getFilteredPresenze(){
 const month = qs("filterMonth").value
 const state = qs("filterState").value
-const name = qs("filterName").value.trim().toLowerCase()
+const nameSearch = qs("filterName").value.trim().toLowerCase()
+const employee = isAdmin ? qs("filterEmployee").value : ""
 
 return presenze.filter(r => {
 const okMonth = !month || String(r.data || "").startsWith(month)
 const okState = !state || r.stato === state
-const okName = !name || String(r.nome || "").toLowerCase().includes(name)
-return okMonth && okState && okName
+const okName = !nameSearch || String(r.nome || "").toLowerCase().includes(nameSearch)
+const okEmployee = !employee || String(r.nome || "") === employee
+return okMonth && okState && okName && okEmployee
 })
 }
 
@@ -837,7 +916,8 @@ const rows = getFilteredPresenze()
 
 const month = qs("filterMonth").value
 const state = qs("filterState").value || "Tutti"
-const name = qs("filterName").value.trim() || "Tutti"
+const nameSearch = qs("filterName").value.trim() || "Tutti"
+const employee = isAdmin ? (qs("filterEmployee").value || "Tutti") : "Solo proprie"
 
 const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
 const presenti = rows.filter(r => r.stato === "Presente").length
@@ -848,9 +928,11 @@ const permessi = rows.filter(r => r.stato === "Permesso").length
 let text = ""
 text += `RIEPILOGO PRESENZE\n`
 text += `Utente: ${user?.email || "-"}\n`
+text += `Ruolo: ${isAdmin ? "ADMIN" : "UTENTE"}\n`
 text += `Mese: ${month || "Tutti"}\n`
 text += `Filtro stato: ${state}\n`
-text += `Filtro nome: ${name}\n\n`
+text += `Ricerca nome: ${nameSearch}\n`
+text += `Filtro dipendente: ${employee}\n\n`
 
 text += `Totale record: ${rows.length}\n`
 text += `Totale ore: ${totalOre.toFixed(2).replace(".00","")}\n`
@@ -901,6 +983,9 @@ function resetFilters(){
 qs("filterMonth").value = currentMonthValue()
 qs("filterState").value = ""
 qs("filterName").value = ""
+if(isAdmin){
+qs("filterEmployee").value = ""
+}
 renderAll()
 }
 
