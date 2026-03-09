@@ -570,8 +570,7 @@ const SUPABASE_KEY = "sb_publishable_lwd5Lahd5CirK_RlQmhcBA_PTo6c14v"
 const BOSS_EMAIL = "m.colurci@gmail.com"
 const ADMIN_EMAIL = "m.colurci@gmail.com"
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-
+let supabase = null
 let user = null
 let presenze = []
 let editingId = null
@@ -579,576 +578,636 @@ let lastReportText = ""
 let isAdmin = false
 
 function qs(id){
-return document.getElementById(id)
+  return document.getElementById(id)
 }
 
 function setAuthStatus(msg){
-qs("authStatus").textContent = msg || ""
+  const el = qs("authStatus")
+  if(el) el.textContent = msg || ""
+  console.log("[AUTH]", msg || "")
 }
 
 function setAppStatus(msg){
-qs("appStatus").textContent = msg || ""
+  const el = qs("appStatus")
+  if(el) el.textContent = msg || ""
+  console.log("[APP]", msg || "")
 }
 
 function escapeHtml(value){
-return String(value ?? "")
-.replaceAll("&","&amp;")
-.replaceAll("<","&lt;")
-.replaceAll(">","&gt;")
-.replaceAll('"',"&quot;")
-.replaceAll("'","&#039;")
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;")
 }
 
 function getBadgeClass(stato){
-if(stato === "Presente") return "badge badge-presente"
-if(stato === "Assente") return "badge badge-assente"
-if(stato === "Ferie") return "badge badge-ferie"
-if(stato === "Permesso") return "badge badge-permesso"
-return "badge"
+  if(stato === "Presente") return "badge badge-presente"
+  if(stato === "Assente") return "badge badge-assente"
+  if(stato === "Ferie") return "badge badge-ferie"
+  if(stato === "Permesso") return "badge badge-permesso"
+  return "badge"
 }
 
 function todayISO(){
-const d = new Date()
-const year = d.getFullYear()
-const month = String(d.getMonth() + 1).padStart(2,"0")
-const day = String(d.getDate()).padStart(2,"0")
-return `${year}-${month}-${day}`
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2,"0")
+  const day = String(d.getDate()).padStart(2,"0")
+  return `${year}-${month}-${day}`
 }
 
 function currentMonthValue(){
-const d = new Date()
-const year = d.getFullYear()
-const month = String(d.getMonth() + 1).padStart(2,"0")
-return `${year}-${month}`
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2,"0")
+  return `${year}-${month}`
 }
 
 function formatDate(dateString){
-if(!dateString) return ""
-const [y,m,d] = dateString.split("-")
-if(!y || !m || !d) return dateString
-return `${d}/${m}/${y}`
+  if(!dateString) return ""
+  const [y,m,d] = dateString.split("-")
+  if(!y || !m || !d) return dateString
+  return `${d}/${m}/${y}`
 }
 
 function extractNameFromEmail(email){
-if(!email) return ""
-const local = String(email).split("@")[0]
-return local.replaceAll(".", " ").replaceAll("_", " ")
+  if(!email) return ""
+  const local = String(email).split("@")[0]
+  return local.replaceAll(".", " ").replaceAll("_", " ")
 }
 
 function applyRoleUi(){
-qs("userInfo").textContent = `Utente: ${user?.email || "-"}`
-qs("roleInfo").innerHTML = isAdmin
-? `Ruolo: <span class="role-admin">ADMIN</span>`
-: `Ruolo: <span class="role-user">UTENTE</span>`
+  if(qs("userInfo")) qs("userInfo").textContent = `Utente: ${user?.email || "-"}`
+  if(qs("roleInfo")){
+    qs("roleInfo").innerHTML = isAdmin
+      ? `Ruolo: <span class="role-admin">ADMIN</span>`
+      : `Ruolo: <span class="role-user">UTENTE</span>`
+  }
 
-if(isAdmin){
-qs("adminFilterWrap").classList.remove("hidden")
-}else{
-qs("adminFilterWrap").classList.add("hidden")
-qs("filterEmployee").value = ""
-}
+  if(qs("adminFilterWrap")){
+    if(isAdmin){
+      qs("adminFilterWrap").classList.remove("hidden")
+    }else{
+      qs("adminFilterWrap").classList.add("hidden")
+      if(qs("filterEmployee")) qs("filterEmployee").value = ""
+    }
+  }
 }
 
 function showLogin(){
-user = null
-isAdmin = false
-presenze = []
-editingId = null
-qs("app").classList.add("hidden")
-qs("loginBox").classList.remove("hidden")
-qs("userInfo").textContent = "Utente: -"
-qs("roleInfo").textContent = "Ruolo: -"
-qs("tabella").innerHTML = ""
-qs("reportBox").textContent = 'Premi "Genera report"'
-qs("chartBars").innerHTML = ""
+  user = null
+  isAdmin = false
+  presenze = []
+  editingId = null
+
+  if(qs("app")) qs("app").classList.add("hidden")
+  if(qs("loginBox")) qs("loginBox").classList.remove("hidden")
+  if(qs("userInfo")) qs("userInfo").textContent = "Utente: -"
+  if(qs("roleInfo")) qs("roleInfo").textContent = "Ruolo: -"
+  if(qs("tabella")) qs("tabella").innerHTML = ""
+  if(qs("reportBox")) qs("reportBox").textContent = 'Premi "Genera report"'
+  if(qs("chartBars")) qs("chartBars").innerHTML = ""
 }
 
 function showApp(currentUser){
-user = currentUser
-isAdmin = String(user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
+  user = currentUser
+  isAdmin = String(user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
-qs("loginBox").classList.add("hidden")
-qs("app").classList.remove("hidden")
+  if(qs("loginBox")) qs("loginBox").classList.add("hidden")
+  if(qs("app")) qs("app").classList.remove("hidden")
 
-applyRoleUi()
+  applyRoleUi()
 
-if(!qs("filterMonth").value){
-qs("filterMonth").value = currentMonthValue()
+  if(qs("filterMonth") && !qs("filterMonth").value){
+    qs("filterMonth").value = currentMonthValue()
+  }
+  if(qs("data") && !qs("data").value){
+    qs("data").value = todayISO()
+  }
+
+  clearForm()
+  loadPresenze()
 }
-if(!qs("data").value){
-qs("data").value = todayISO()
-}
 
-clearForm()
-loadPresenze()
+async function initSupabase(){
+  try{
+    if(!window.supabase || !window.supabase.createClient){
+      setAuthStatus("Errore: libreria Supabase non caricata")
+      return false
+    }
+
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    setAuthStatus("App pronta")
+    return true
+  }catch(err){
+    setAuthStatus("Errore inizializzazione Supabase: " + err.message)
+    return false
+  }
 }
 
 async function checkSession(){
-const { data, error } = await supabase.auth.getSession()
+  if(!supabase) return
 
-if(error){
-showLogin()
-return
-}
+  const { data, error } = await supabase.auth.getSession()
 
-const currentUser = data?.session?.user || null
+  if(error){
+    setAuthStatus("Errore sessione: " + error.message)
+    showLogin()
+    return
+  }
 
-if(currentUser){
-showApp(currentUser)
-}else{
-showLogin()
-}
+  const currentUser = data?.session?.user || null
+
+  if(currentUser){
+    showApp(currentUser)
+    setAuthStatus("")
+  }else{
+    showLogin()
+  }
 }
 
 async function login(){
-const email = qs("email").value.trim()
-const password = qs("password").value.trim()
+  try{
+    const email = qs("email")?.value.trim()
+    const password = qs("password")?.value.trim()
 
-setAuthStatus("")
+    setAuthStatus("Tentativo di login...")
 
-if(!email || !password){
-setAuthStatus("Inserisci email e password")
-return
-}
+    if(!email || !password){
+      setAuthStatus("Inserisci email e password")
+      return
+    }
 
-const { data, error } = await supabase.auth.signInWithPassword({
-email,
-password
-})
+    if(!supabase){
+      setAuthStatus("Supabase non inizializzato")
+      return
+    }
 
-if(error){
-setAuthStatus("Errore login: " + error.message)
-return
-}
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
 
-showApp(data.user)
-setAuthStatus("")
+    if(error){
+      setAuthStatus("Errore login: " + error.message)
+      return
+    }
+
+    if(!data?.user){
+      setAuthStatus("Login non riuscito: utente non trovato nella sessione")
+      return
+    }
+
+    showApp(data.user)
+    setAuthStatus("Login riuscito")
+  }catch(err){
+    setAuthStatus("Errore JS login: " + err.message)
+  }
 }
 
 async function register(){
-const email = qs("email").value.trim()
-const password = qs("password").value.trim()
+  try{
+    const email = qs("email")?.value.trim()
+    const password = qs("password")?.value.trim()
 
-setAuthStatus("")
+    setAuthStatus("Tentativo di registrazione...")
 
-if(!email || !password){
-setAuthStatus("Inserisci email e password")
-return
-}
+    if(!email || !password){
+      setAuthStatus("Inserisci email e password")
+      return
+    }
 
-if(password.length < 6){
-setAuthStatus("La password deve avere almeno 6 caratteri")
-return
-}
+    if(password.length < 6){
+      setAuthStatus("La password deve avere almeno 6 caratteri")
+      return
+    }
 
-const { data, error } = await supabase.auth.signUp({
-email,
-password
-})
+    if(!supabase){
+      setAuthStatus("Supabase non inizializzato")
+      return
+    }
 
-if(error){
-setAuthStatus("Errore registrazione: " + error.message)
-return
-}
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password
+    })
 
-if(data?.session?.user){
-showApp(data.session.user)
-setAuthStatus("")
-return
-}
+    if(error){
+      setAuthStatus("Errore registrazione: " + error.message)
+      return
+    }
 
-setAuthStatus("Registrazione completata. Se il login non entra subito, controlla in Supabase che la conferma mail sia disattivata.")
+    if(data?.session?.user){
+      showApp(data.session.user)
+      setAuthStatus("Registrazione completata e login effettuato")
+      return
+    }
+
+    setAuthStatus("Utente creato. Se non entri subito, disattiva la conferma email in Supabase.")
+  }catch(err){
+    setAuthStatus("Errore JS registrazione: " + err.message)
+  }
 }
 
 async function resetPassword(){
-const email = qs("email").value.trim()
+  try{
+    const email = qs("email")?.value.trim()
 
-setAuthStatus("")
+    if(!email){
+      setAuthStatus("Inserisci prima l'email")
+      return
+    }
 
-if(!email){
-setAuthStatus("Inserisci prima l'email")
-return
-}
+    const { error } = await supabase.auth.resetPasswordForEmail(email)
 
-const { error } = await supabase.auth.resetPasswordForEmail(email)
+    if(error){
+      setAuthStatus("Errore reset password: " + error.message)
+      return
+    }
 
-if(error){
-setAuthStatus("Errore reset password: " + error.message)
-return
-}
-
-setAuthStatus("Mail di reset inviata, se il provider email è configurato.")
+    setAuthStatus("Mail di reset inviata")
+  }catch(err){
+    setAuthStatus("Errore JS reset password: " + err.message)
+  }
 }
 
 async function logout(){
-await supabase.auth.signOut()
-showLogin()
-setAuthStatus("Logout effettuato")
+  if(!supabase) return
+  await supabase.auth.signOut()
+  showLogin()
+  setAuthStatus("Logout effettuato")
 }
 
 function clearForm(){
-qs("nome").value = isAdmin ? "" : extractNameFromEmail(user?.email || "")
-qs("data").value = todayISO()
-qs("stato").value = "Presente"
-qs("ore").value = ""
-qs("sede").value = ""
-qs("note").value = ""
+  if(qs("nome")) qs("nome").value = isAdmin ? "" : extractNameFromEmail(user?.email || "")
+  if(qs("data")) qs("data").value = todayISO()
+  if(qs("stato")) qs("stato").value = "Presente"
+  if(qs("ore")) qs("ore").value = ""
+  if(qs("sede")) qs("sede").value = ""
+  if(qs("note")) qs("note").value = ""
 }
 
 function setEditMode(row){
-editingId = row.id
-qs("formTitle").textContent = "Modifica presenza"
-qs("saveBtn").textContent = "Aggiorna presenza"
-qs("cancelEditBtn").classList.remove("hidden")
+  editingId = row.id
+  if(qs("formTitle")) qs("formTitle").textContent = "Modifica presenza"
+  if(qs("saveBtn")) qs("saveBtn").textContent = "Aggiorna presenza"
+  if(qs("cancelEditBtn")) qs("cancelEditBtn").classList.remove("hidden")
 
-qs("nome").value = row.nome || ""
-qs("data").value = row.data || todayISO()
-qs("stato").value = row.stato || "Presente"
-qs("ore").value = row.ore ?? ""
-qs("sede").value = row.sede || ""
-qs("note").value = row.note || ""
+  if(qs("nome")) qs("nome").value = row.nome || ""
+  if(qs("data")) qs("data").value = row.data || todayISO()
+  if(qs("stato")) qs("stato").value = row.stato || "Presente"
+  if(qs("ore")) qs("ore").value = row.ore ?? ""
+  if(qs("sede")) qs("sede").value = row.sede || ""
+  if(qs("note")) qs("note").value = row.note || ""
 
-window.scrollTo({ top: 0, behavior: "smooth" })
+  window.scrollTo({ top: 0, behavior: "smooth" })
 }
 
 function cancelEdit(){
-editingId = null
-qs("formTitle").textContent = "Inserisci presenza"
-qs("saveBtn").textContent = "Salva presenza"
-qs("cancelEditBtn").classList.add("hidden")
-clearForm()
-setAppStatus("")
+  editingId = null
+  if(qs("formTitle")) qs("formTitle").textContent = "Inserisci presenza"
+  if(qs("saveBtn")) qs("saveBtn").textContent = "Salva presenza"
+  if(qs("cancelEditBtn")) qs("cancelEditBtn").classList.add("hidden")
+  clearForm()
+  setAppStatus("")
 }
 
 async function savePresenza(){
-setAppStatus("")
+  try{
+    setAppStatus("")
 
-if(!user){
-setAppStatus("Devi fare login")
-return
-}
+    if(!user){
+      setAppStatus("Devi fare login")
+      return
+    }
 
-const nome = qs("nome").value.trim()
-const data = qs("data").value
-const stato = qs("stato").value
-const ore = Number(qs("ore").value || 0)
-const sede = qs("sede").value.trim()
-const note = qs("note").value.trim()
+    const nome = qs("nome")?.value.trim()
+    const data = qs("data")?.value
+    const stato = qs("stato")?.value
+    const ore = Number(qs("ore")?.value || 0)
+    const sede = qs("sede")?.value.trim()
+    const note = qs("note")?.value.trim()
 
-if(!nome || !data){
-setAppStatus("Compila almeno nome e data")
-return
-}
+    if(!nome || !data){
+      setAppStatus("Compila almeno nome e data")
+      return
+    }
 
-if(editingId){
-const { error } = await supabase
-.from("presenze")
-.update({
-nome,
-data,
-stato,
-ore,
-sede,
-note
-})
-.eq("id", editingId)
+    if(editingId){
+      const { error } = await supabase
+        .from("presenze")
+        .update({ nome, data, stato, ore, sede, note })
+        .eq("id", editingId)
 
-if(error){
-setAppStatus("Errore aggiornamento: " + error.message)
-return
-}
+      if(error){
+        setAppStatus("Errore aggiornamento: " + error.message)
+        return
+      }
 
-setAppStatus("Presenza aggiornata")
-cancelEdit()
-await loadPresenze()
-return
-}
+      setAppStatus("Presenza aggiornata")
+      cancelEdit()
+      await loadPresenze()
+      return
+    }
 
-const { error } = await supabase
-.from("presenze")
-.insert([{
-user_id: user.id,
-email: user.email,
-nome,
-data,
-stato,
-ore,
-sede,
-note
-}])
+    const { error } = await supabase
+      .from("presenze")
+      .insert([{
+        user_id: user.id,
+        email: user.email,
+        nome,
+        data,
+        stato,
+        ore,
+        sede,
+        note
+      }])
 
-if(error){
-setAppStatus("Errore inserimento: " + error.message)
-return
-}
+    if(error){
+      setAppStatus("Errore inserimento: " + error.message)
+      return
+    }
 
-clearForm()
-setAppStatus("Presenza salvata")
-await loadPresenze()
+    clearForm()
+    setAppStatus("Presenza salvata")
+    await loadPresenze()
+  }catch(err){
+    setAppStatus("Errore JS salvataggio: " + err.message)
+  }
 }
 
 async function deletePresenza(id){
-if(!confirm("Vuoi eliminare questa presenza?")) return
+  if(!confirm("Vuoi eliminare questa presenza?")) return
 
-const { error } = await supabase
-.from("presenze")
-.delete()
-.eq("id", id)
+  const { error } = await supabase
+    .from("presenze")
+    .delete()
+    .eq("id", id)
 
-if(error){
-setAppStatus("Errore eliminazione: " + error.message)
-return
-}
+  if(error){
+    setAppStatus("Errore eliminazione: " + error.message)
+    return
+  }
 
-if(editingId === id){
-cancelEdit()
-}
+  if(editingId === id){
+    cancelEdit()
+  }
 
-setAppStatus("Presenza eliminata")
-await loadPresenze()
+  setAppStatus("Presenza eliminata")
+  await loadPresenze()
 }
 
 async function loadPresenze(){
-if(!user) return
+  if(!user || !supabase) return
 
-const { data, error } = await supabase
-.from("presenze")
-.select("*")
-.order("data", { ascending: false })
-.order("id", { ascending: false })
+  const { data, error } = await supabase
+    .from("presenze")
+    .select("*")
+    .order("data", { ascending: false })
+    .order("id", { ascending: false })
 
-if(error){
-qs("tabella").innerHTML = `<tr><td colspan="7" class="empty">Errore caricamento: ${escapeHtml(error.message)}</td></tr>`
-return
-}
+  if(error){
+    if(qs("tabella")){
+      qs("tabella").innerHTML = `<tr><td colspan="7" class="empty">Errore caricamento: ${escapeHtml(error.message)}</td></tr>`
+    }
+    return
+  }
 
-presenze = data || []
-populateEmployeeFilter()
-renderAll()
+  presenze = data || []
+  populateEmployeeFilter()
+  renderAll()
 }
 
 function populateEmployeeFilter(){
-const select = qs("filterEmployee")
-const currentValue = select.value
+  const select = qs("filterEmployee")
+  if(!select) return
 
-select.innerHTML = `<option value="">Tutti</option>`
+  const currentValue = select.value
+  select.innerHTML = `<option value="">Tutti</option>`
 
-if(!isAdmin) return
+  if(!isAdmin) return
 
-const uniqueNames = [...new Set(
-presenze
-.map(r => String(r.nome || "").trim())
-.filter(Boolean)
-)].sort((a,b) => a.localeCompare(b, "it"))
+  const uniqueNames = [...new Set(
+    presenze.map(r => String(r.nome || "").trim()).filter(Boolean)
+  )].sort((a,b) => a.localeCompare(b, "it"))
 
-uniqueNames.forEach(name => {
-const option = document.createElement("option")
-option.value = name
-option.textContent = name
-select.appendChild(option)
-})
+  uniqueNames.forEach(name => {
+    const option = document.createElement("option")
+    option.value = name
+    option.textContent = name
+    select.appendChild(option)
+  })
 
-select.value = currentValue
+  select.value = currentValue
 }
 
 function getFilteredPresenze(){
-const month = qs("filterMonth").value
-const state = qs("filterState").value
-const nameSearch = qs("filterName").value.trim().toLowerCase()
-const employee = isAdmin ? qs("filterEmployee").value : ""
+  const month = qs("filterMonth")?.value || ""
+  const state = qs("filterState")?.value || ""
+  const nameSearch = qs("filterName")?.value.trim().toLowerCase() || ""
+  const employee = isAdmin ? (qs("filterEmployee")?.value || "") : ""
 
-return presenze.filter(r => {
-const okMonth = !month || String(r.data || "").startsWith(month)
-const okState = !state || r.stato === state
-const okName = !nameSearch || String(r.nome || "").toLowerCase().includes(nameSearch)
-const okEmployee = !employee || String(r.nome || "") === employee
-return okMonth && okState && okName && okEmployee
-})
+  return presenze.filter(r => {
+    const okMonth = !month || String(r.data || "").startsWith(month)
+    const okState = !state || r.stato === state
+    const okName = !nameSearch || String(r.nome || "").toLowerCase().includes(nameSearch)
+    const okEmployee = !employee || String(r.nome || "") === employee
+    return okMonth && okState && okName && okEmployee
+  })
 }
 
 function renderSummary(rows){
-const totalRecord = rows.length
-const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
-const presenti = rows.filter(r => r.stato === "Presente").length
-const assenti = rows.filter(r => r.stato === "Assente").length
-const ferie = rows.filter(r => r.stato === "Ferie").length
-const permessi = rows.filter(r => r.stato === "Permesso").length
+  if(!qs("sumRecord")) return
 
-qs("sumRecord").textContent = totalRecord
-qs("sumOre").textContent = totalOre.toFixed(2).replace(".00","")
-qs("sumPresenti").textContent = presenti
-qs("sumAssenti").textContent = assenti
-qs("sumFerie").textContent = ferie
-qs("sumPermessi").textContent = permessi
+  const totalRecord = rows.length
+  const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
+  const presenti = rows.filter(r => r.stato === "Presente").length
+  const assenti = rows.filter(r => r.stato === "Assente").length
+  const ferie = rows.filter(r => r.stato === "Ferie").length
+  const permessi = rows.filter(r => r.stato === "Permesso").length
+
+  qs("sumRecord").textContent = totalRecord
+  qs("sumOre").textContent = totalOre.toFixed(2).replace(".00","")
+  qs("sumPresenti").textContent = presenti
+  qs("sumAssenti").textContent = assenti
+  qs("sumFerie").textContent = ferie
+  qs("sumPermessi").textContent = permessi
 }
 
 function renderTable(rows){
-const tabella = qs("tabella")
-tabella.innerHTML = ""
+  const tabella = qs("tabella")
+  if(!tabella) return
 
-if(!rows.length){
-tabella.innerHTML = `<tr><td colspan="7" class="empty">Nessuna presenza trovata</td></tr>`
-return
-}
+  tabella.innerHTML = ""
 
-rows.forEach(r => {
-tabella.innerHTML += `
-<tr>
-<td>${escapeHtml(r.nome || "")}</td>
-<td>${escapeHtml(formatDate(r.data))}</td>
-<td><span class="${getBadgeClass(r.stato)}">${escapeHtml(r.stato || "")}</span></td>
-<td>${escapeHtml(Number(r.ore || 0).toFixed(2).replace(".00",""))}</td>
-<td>${escapeHtml(r.sede || "")}</td>
-<td>${escapeHtml(r.note || "")}</td>
-<td class="actions-cell">
-<div class="table-buttons">
-<button class="btn-info" onclick="editPresenza(${r.id})">Modifica</button>
-<button class="btn-danger" onclick="deletePresenza(${r.id})">Elimina</button>
-</div>
-</td>
-</tr>
-`
-})
+  if(!rows.length){
+    tabella.innerHTML = `<tr><td colspan="7" class="empty">Nessuna presenza trovata</td></tr>`
+    return
+  }
+
+  rows.forEach(r => {
+    tabella.innerHTML += `
+    <tr>
+      <td>${escapeHtml(r.nome || "")}</td>
+      <td>${escapeHtml(formatDate(r.data))}</td>
+      <td><span class="${getBadgeClass(r.stato)}">${escapeHtml(r.stato || "")}</span></td>
+      <td>${escapeHtml(Number(r.ore || 0).toFixed(2).replace(".00",""))}</td>
+      <td>${escapeHtml(r.sede || "")}</td>
+      <td>${escapeHtml(r.note || "")}</td>
+      <td class="actions-cell">
+        <div class="table-buttons">
+          <button class="btn-info" onclick="editPresenza(${r.id})">Modifica</button>
+          <button class="btn-danger" onclick="deletePresenza(${r.id})">Elimina</button>
+        </div>
+      </td>
+    </tr>
+    `
+  })
 }
 
 function editPresenza(id){
-const row = presenze.find(x => x.id === id)
-if(!row) return
-setEditMode(row)
+  const row = presenze.find(x => x.id === id)
+  if(!row) return
+  setEditMode(row)
 }
 
 function renderChart(rows){
-const chart = qs("chartBars")
+  const chart = qs("chartBars")
+  if(!chart) return
 
-const totals = {
-Presente: 0,
-Assente: 0,
-Ferie: 0,
-Permesso: 0
-}
+  const totals = { Presente: 0, Assente: 0, Ferie: 0, Permesso: 0 }
 
-rows.forEach(r => {
-totals[r.stato] = (totals[r.stato] || 0) + Number(r.ore || 0)
-})
+  rows.forEach(r => {
+    totals[r.stato] = (totals[r.stato] || 0) + Number(r.ore || 0)
+  })
 
-const maxValue = Math.max(...Object.values(totals), 1)
+  const maxValue = Math.max(...Object.values(totals), 1)
 
-const items = [
-{ label: "Presente", value: totals.Presente, cls: "bar-presente" },
-{ label: "Assente", value: totals.Assente, cls: "bar-assente" },
-{ label: "Ferie", value: totals.Ferie, cls: "bar-ferie" },
-{ label: "Permesso", value: totals.Permesso, cls: "bar-permesso" }
-]
+  const items = [
+    { label: "Presente", value: totals.Presente, cls: "bar-presente" },
+    { label: "Assente", value: totals.Assente, cls: "bar-assente" },
+    { label: "Ferie", value: totals.Ferie, cls: "bar-ferie" },
+    { label: "Permesso", value: totals.Permesso, cls: "bar-permesso" }
+  ]
 
-chart.innerHTML = items.map(item => {
-const width = (item.value / maxValue) * 100
-return `
-<div class="bar-row">
-<div class="bar-label">${item.label}</div>
-<div class="bar-track">
-<div class="bar-fill ${item.cls}" style="width:${width}%"></div>
-</div>
-<div class="bar-value">${item.value.toFixed(2).replace(".00","")}</div>
-</div>
-`
-}).join("")
+  chart.innerHTML = items.map(item => {
+    const width = (item.value / maxValue) * 100
+    return `
+    <div class="bar-row">
+      <div class="bar-label">${item.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill ${item.cls}" style="width:${width}%"></div>
+      </div>
+      <div class="bar-value">${item.value.toFixed(2).replace(".00","")}</div>
+    </div>
+    `
+  }).join("")
 }
 
 function generateReport(){
-const rows = getFilteredPresenze()
+  const rows = getFilteredPresenze()
 
-const month = qs("filterMonth").value
-const state = qs("filterState").value || "Tutti"
-const nameSearch = qs("filterName").value.trim() || "Tutti"
-const employee = isAdmin ? (qs("filterEmployee").value || "Tutti") : "Solo proprie"
+  const month = qs("filterMonth")?.value || ""
+  const state = qs("filterState")?.value || "Tutti"
+  const nameSearch = qs("filterName")?.value.trim() || "Tutti"
+  const employee = isAdmin ? (qs("filterEmployee")?.value || "Tutti") : "Solo proprie"
 
-const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
-const presenti = rows.filter(r => r.stato === "Presente").length
-const assenti = rows.filter(r => r.stato === "Assente").length
-const ferie = rows.filter(r => r.stato === "Ferie").length
-const permessi = rows.filter(r => r.stato === "Permesso").length
+  const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
+  const presenti = rows.filter(r => r.stato === "Presente").length
+  const assenti = rows.filter(r => r.stato === "Assente").length
+  const ferie = rows.filter(r => r.stato === "Ferie").length
+  const permessi = rows.filter(r => r.stato === "Permesso").length
 
-let text = ""
-text += `RIEPILOGO PRESENZE\n`
-text += `Utente: ${user?.email || "-"}\n`
-text += `Ruolo: ${isAdmin ? "ADMIN" : "UTENTE"}\n`
-text += `Mese: ${month || "Tutti"}\n`
-text += `Filtro stato: ${state}\n`
-text += `Ricerca nome: ${nameSearch}\n`
-text += `Filtro dipendente: ${employee}\n\n`
+  let text = ""
+  text += `RIEPILOGO PRESENZE\n`
+  text += `Utente: ${user?.email || "-"}\n`
+  text += `Ruolo: ${isAdmin ? "ADMIN" : "UTENTE"}\n`
+  text += `Mese: ${month || "Tutti"}\n`
+  text += `Filtro stato: ${state}\n`
+  text += `Ricerca nome: ${nameSearch}\n`
+  text += `Filtro dipendente: ${employee}\n\n`
+  text += `Totale record: ${rows.length}\n`
+  text += `Totale ore: ${totalOre.toFixed(2).replace(".00","")}\n`
+  text += `Presenti: ${presenti}\n`
+  text += `Assenti: ${assenti}\n`
+  text += `Ferie: ${ferie}\n`
+  text += `Permessi: ${permessi}\n\n`
+  text += `DETTAGLIO\n`
+  text += `----------------------------------------\n`
 
-text += `Totale record: ${rows.length}\n`
-text += `Totale ore: ${totalOre.toFixed(2).replace(".00","")}\n`
-text += `Presenti: ${presenti}\n`
-text += `Assenti: ${assenti}\n`
-text += `Ferie: ${ferie}\n`
-text += `Permessi: ${permessi}\n\n`
+  if(!rows.length){
+    text += `Nessuna presenza trovata\n`
+  }else{
+    rows.forEach(r => {
+      text += `${formatDate(r.data)} | ${r.nome} | ${r.stato} | Ore: ${Number(r.ore || 0).toFixed(2).replace(".00","")} | Sede: ${r.sede || "-"} | Note: ${r.note || "-"}\n`
+    })
+  }
 
-text += `DETTAGLIO\n`
-text += `----------------------------------------\n`
-
-if(!rows.length){
-text += `Nessuna presenza trovata\n`
-}else{
-rows.forEach(r => {
-text += `${formatDate(r.data)} | ${r.nome} | ${r.stato} | Ore: ${Number(r.ore || 0).toFixed(2).replace(".00","")} | Sede: ${r.sede || "-"} | Note: ${r.note || "-"}\n`
-})
-}
-
-lastReportText = text
-qs("reportBox").textContent = text
+  lastReportText = text
+  if(qs("reportBox")) qs("reportBox").textContent = text
 }
 
 async function copyReport(){
-if(!lastReportText){
-generateReport()
-}
+  if(!lastReportText){
+    generateReport()
+  }
 
-try{
-await navigator.clipboard.writeText(lastReportText)
-setAppStatus("Report copiato negli appunti")
-}catch(e){
-setAppStatus("Non sono riuscito a copiare il report")
-}
+  try{
+    await navigator.clipboard.writeText(lastReportText)
+    setAppStatus("Report copiato negli appunti")
+  }catch(e){
+    setAppStatus("Non sono riuscito a copiare il report")
+  }
 }
 
 function sendMailReport(){
-if(!lastReportText){
-generateReport()
-}
+  if(!lastReportText){
+    generateReport()
+  }
 
-const subject = encodeURIComponent("Riepilogo presenze")
-const body = encodeURIComponent(lastReportText)
-window.location.href = `mailto:${BOSS_EMAIL}?subject=${subject}&body=${body}`
+  const subject = encodeURIComponent("Riepilogo presenze")
+  const body = encodeURIComponent(lastReportText)
+  window.location.href = `mailto:${BOSS_EMAIL}?subject=${subject}&body=${body}`
 }
 
 function resetFilters(){
-qs("filterMonth").value = currentMonthValue()
-qs("filterState").value = ""
-qs("filterName").value = ""
-if(isAdmin){
-qs("filterEmployee").value = ""
-}
-renderAll()
+  if(qs("filterMonth")) qs("filterMonth").value = currentMonthValue()
+  if(qs("filterState")) qs("filterState").value = ""
+  if(qs("filterName")) qs("filterName").value = ""
+  if(isAdmin && qs("filterEmployee")){
+    qs("filterEmployee").value = ""
+  }
+  renderAll()
 }
 
 function renderAll(){
-const rows = getFilteredPresenze()
-renderSummary(rows)
-renderTable(rows)
-renderChart(rows)
-generateReport()
+  const rows = getFilteredPresenze()
+  renderSummary(rows)
+  renderTable(rows)
+  renderChart(rows)
+  generateReport()
 }
 
-supabase.auth.onAuthStateChange((_event, session) => {
-if(session?.user){
-showApp(session.user)
-}else{
-showLogin()
-}
+window.addEventListener("error", function(event){
+  setAuthStatus("Errore JavaScript: " + event.message)
 })
 
-checkSession()
+window.addEventListener("load", async function(){
+  const ok = await initSupabase()
+  if(!ok) return
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if(session?.user){
+      showApp(session.user)
+    }else{
+      showLogin()
+    }
+  })
+
+  await checkSession()
+})
 </script>
 
 </body>
