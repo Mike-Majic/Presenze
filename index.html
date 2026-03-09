@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestione Presenze V3</title>
+<title>Gestione Presenze</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
@@ -24,7 +24,6 @@ box-sizing:border-box;
 --blue:#38bdf8;
 --pink:#ec4899;
 --yellow:#facc15;
---violet:#8b5cf6;
 --border:rgba(255,255,255,.08);
 }
 
@@ -32,9 +31,8 @@ body{
 margin:0;
 font-family:Arial,sans-serif;
 background:
-radial-gradient(circle at top left, rgba(249,115,22,.22), transparent 28%),
-radial-gradient(circle at top right, rgba(56,189,248,.22), transparent 28%),
-radial-gradient(circle at bottom left, rgba(236,72,153,.18), transparent 24%),
+radial-gradient(circle at top left, rgba(249,115,22,.20), transparent 25%),
+radial-gradient(circle at top right, rgba(56,189,248,.20), transparent 25%),
 linear-gradient(135deg,var(--bg1),var(--bg2));
 color:var(--text);
 min-height:100vh;
@@ -51,7 +49,7 @@ box-shadow:0 10px 30px rgba(0,0,0,.25);
 }
 
 .container{
-max-width:1380px;
+max-width:1100px;
 margin:0 auto;
 padding:20px;
 }
@@ -63,7 +61,6 @@ border-radius:18px;
 padding:18px;
 margin-bottom:18px;
 box-shadow:0 10px 24px rgba(0,0,0,.20);
-backdrop-filter:blur(6px);
 }
 
 h2,h3{
@@ -78,7 +75,7 @@ color:var(--muted);
 margin-bottom:6px;
 }
 
-input,select,textarea,button{
+input,select,button{
 width:100%;
 border:none;
 border-radius:12px;
@@ -87,20 +84,15 @@ font-size:14px;
 font-family:inherit;
 }
 
-input,select,textarea{
+input,select{
 background:var(--card2);
 color:var(--text);
 outline:none;
 border:1px solid rgba(255,255,255,.05);
 }
 
-input::placeholder,textarea::placeholder{
+input::placeholder{
 color:#b6c2d1;
-}
-
-textarea{
-resize:vertical;
-min-height:44px;
 }
 
 button{
@@ -118,37 +110,22 @@ filter:brightness(1.03);
 .btn-primary{ background:linear-gradient(90deg,var(--green),#16a34a); }
 .btn-secondary{ background:linear-gradient(90deg,var(--orange),#ea580c); }
 .btn-danger{ background:linear-gradient(90deg,var(--red),#dc2626); }
-.btn-info{ background:linear-gradient(90deg,var(--blue),#0284c7); }
-.btn-pink{ background:linear-gradient(90deg,var(--pink),#db2777); }
-.btn-gray{ background:linear-gradient(90deg,#64748b,#475569); }
-.btn-violet{ background:linear-gradient(90deg,var(--violet),#7c3aed); }
 
 .grid{
 display:grid;
 gap:12px;
 }
 
-.grid-auth{
-grid-template-columns:1fr;
-}
-
-.grid-form{
-grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-}
-
-.grid-summary{
-grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-}
-
-.grid-dashboard{
-grid-template-columns:2fr 1fr;
-gap:18px;
+.login-wrap{
+max-width:460px;
+margin:50px auto 0 auto;
 }
 
 .actions{
 display:flex;
 gap:10px;
 flex-wrap:wrap;
+margin-top:12px;
 }
 
 .actions > button{
@@ -159,9 +136,12 @@ flex:1 1 180px;
 display:none !important;
 }
 
-.login-wrap{
-max-width:480px;
-margin:50px auto 0 auto;
+.status{
+margin-top:10px;
+font-size:14px;
+color:var(--muted);
+min-height:20px;
+white-space:pre-wrap;
 }
 
 .topbar{
@@ -182,41 +162,22 @@ color:var(--muted);
 font-size:14px;
 }
 
-.status{
-margin-top:10px;
-font-size:14px;
-color:var(--muted);
-min-height:20px;
-white-space:pre-wrap;
-}
-
-.summary-box{
-background:linear-gradient(135deg,rgba(249,115,22,.18),rgba(56,189,248,.18));
-border:1px solid var(--border);
-border-radius:16px;
-padding:16px;
-}
-
-.summary-label{
-font-size:13px;
-color:var(--muted);
-margin-bottom:6px;
-}
-
-.summary-value{
-font-size:26px;
-font-weight:800;
+.form-grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:12px;
 }
 
 .table-wrap{
 overflow:auto;
 border-radius:14px;
+margin-top:16px;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
-min-width:980px;
+min-width:760px;
 }
 
 th{
@@ -233,149 +194,25 @@ padding:12px;
 text-align:center;
 border-top:1px solid rgba(255,255,255,.06);
 font-size:14px;
-vertical-align:middle;
 }
-
-td.actions-cell{
-min-width:180px;
-}
-
-.table-buttons{
-display:flex;
-gap:8px;
-justify-content:center;
-flex-wrap:wrap;
-}
-
-.table-buttons button{
-width:auto;
-padding:8px 12px;
-border-radius:10px;
-font-size:13px;
-}
-
-.badge{
-display:inline-block;
-padding:6px 10px;
-border-radius:999px;
-font-size:12px;
-font-weight:700;
-}
-
-.badge-presente{ background:rgba(34,197,94,.18); color:#86efac; }
-.badge-assente{ background:rgba(239,68,68,.18); color:#fca5a5; }
-.badge-ferie{ background:rgba(56,189,248,.18); color:#7dd3fc; }
-.badge-permesso{ background:rgba(250,204,21,.18); color:#fde68a; }
 
 .empty{
 padding:18px;
 text-align:center;
 color:var(--muted);
 }
-
-.report-box{
-white-space:pre-wrap;
-background:#0b1220;
-border:1px solid var(--border);
-border-radius:14px;
-padding:14px;
-color:#e5eef9;
-font-size:14px;
-max-height:340px;
-overflow:auto;
-}
-
-.small{
-font-size:12px;
-color:var(--muted);
-}
-
-.role-admin{
-color:#86efac;
-font-weight:700;
-}
-
-.role-user{
-color:#7dd3fc;
-font-weight:700;
-}
-
-.chart-wrap{
-background:#0b1220;
-border:1px solid var(--border);
-border-radius:16px;
-padding:14px;
-}
-
-.chart-title{
-font-size:14px;
-color:var(--muted);
-margin-bottom:12px;
-}
-
-.bar-row{
-display:grid;
-grid-template-columns:110px 1fr 50px;
-gap:10px;
-align-items:center;
-margin-bottom:10px;
-}
-
-.bar-label{
-font-size:13px;
-color:#e5eef9;
-}
-
-.bar-track{
-height:18px;
-background:#1f2937;
-border-radius:999px;
-overflow:hidden;
-border:1px solid rgba(255,255,255,.05);
-}
-
-.bar-fill{
-height:100%;
-border-radius:999px;
-}
-
-.bar-value{
-text-align:right;
-font-size:13px;
-color:#e5eef9;
-}
-
-.bar-presente{ background:linear-gradient(90deg,#22c55e,#16a34a); }
-.bar-assente{ background:linear-gradient(90deg,#ef4444,#dc2626); }
-.bar-ferie{ background:linear-gradient(90deg,#38bdf8,#0284c7); }
-.bar-permesso{ background:linear-gradient(90deg,#facc15,#eab308); }
-
-@media (max-width:960px){
-.grid-dashboard{
-grid-template-columns:1fr;
-}
-}
-
-@media (max-width:700px){
-header{
-font-size:22px;
-}
-.summary-value{
-font-size:22px;
-}
-}
 </style>
 </head>
 <body>
 
-<header>GESTIONE PRESENZE LAVORO V3</header>
+<header>GESTIONE PRESENZE LAVORO</header>
 
 <div class="container">
 
 <div id="loginBox" class="card login-wrap">
 <h2>Accesso</h2>
 
-<div class="grid grid-auth">
+<div class="grid">
 <div>
 <label>Email</label>
 <input id="email" type="email" placeholder="nome@email.it">
@@ -387,10 +224,9 @@ font-size:22px;
 </div>
 </div>
 
-<div class="actions" style="margin-top:12px;">
+<div class="actions">
 <button class="btn-primary" onclick="login()">Login</button>
 <button class="btn-secondary" onclick="register()">Registrati</button>
-<button class="btn-violet" onclick="resetPassword()">Reset password</button>
 </div>
 
 <div id="authStatus" class="status"></div>
@@ -400,16 +236,15 @@ font-size:22px;
 
 <div class="topbar">
 <div class="pill" id="userInfo">Utente: -</div>
-<div class="pill" id="roleInfo">Ruolo: -</div>
-<div class="actions" style="max-width:420px; width:100%;">
+<div class="actions" style="max-width:220px; width:100%;">
 <button class="btn-danger" onclick="logout()">Logout</button>
 </div>
 </div>
 
 <div class="card">
-<h3 id="formTitle">Inserisci presenza</h3>
+<h3>Inserisci presenza</h3>
 
-<div class="grid grid-form">
+<div class="form-grid">
 <div>
 <label>Nome</label>
 <input id="nome" placeholder="Nome dipendente">
@@ -446,103 +281,15 @@ font-size:22px;
 </div>
 </div>
 
-<div class="actions" style="margin-top:12px;">
-<button id="saveBtn" class="btn-primary" onclick="savePresenza()">Salva presenza</button>
-<button id="cancelEditBtn" class="btn-gray hidden" onclick="cancelEdit()">Annulla modifica</button>
+<div class="actions">
+<button class="btn-primary" onclick="addPresenza()">Salva presenza</button>
 </div>
 
 <div id="appStatus" class="status"></div>
 </div>
 
 <div class="card">
-<h3>Filtri e dashboard</h3>
-
-<div class="grid grid-form">
-<div>
-<label>Mese</label>
-<input id="filterMonth" type="month" onchange="renderAll()">
-</div>
-
-<div>
-<label>Stato</label>
-<select id="filterState" onchange="renderAll()">
-<option value="">Tutti</option>
-<option value="Presente">Presente</option>
-<option value="Assente">Assente</option>
-<option value="Ferie">Ferie</option>
-<option value="Permesso">Permesso</option>
-</select>
-</div>
-
-<div>
-<label>Cerca nome</label>
-<input id="filterName" placeholder="Scrivi un nome" oninput="renderAll()">
-</div>
-
-<div id="adminFilterWrap" class="hidden">
-<label>Dipendente</label>
-<select id="filterEmployee" onchange="renderAll()">
-<option value="">Tutti</option>
-</select>
-</div>
-</div>
-
-<div class="actions" style="margin-top:12px;">
-<button class="btn-info" onclick="resetFilters()">Reset filtri</button>
-<button class="btn-pink" onclick="generateReport()">Genera report</button>
-<button class="btn-secondary" onclick="copyReport()">Copia report</button>
-<button class="btn-primary" onclick="sendMailReport()">Invia al capo</button>
-</div>
-
-<div class="grid grid-summary" style="margin-top:16px;">
-<div class="summary-box">
-<div class="summary-label">Totale record</div>
-<div class="summary-value" id="sumRecord">0</div>
-</div>
-
-<div class="summary-box">
-<div class="summary-label">Totale ore</div>
-<div class="summary-value" id="sumOre">0</div>
-</div>
-
-<div class="summary-box">
-<div class="summary-label">Presenti</div>
-<div class="summary-value" id="sumPresenti">0</div>
-</div>
-
-<div class="summary-box">
-<div class="summary-label">Assenti</div>
-<div class="summary-value" id="sumAssenti">0</div>
-</div>
-
-<div class="summary-box">
-<div class="summary-label">Ferie</div>
-<div class="summary-value" id="sumFerie">0</div>
-</div>
-
-<div class="summary-box">
-<div class="summary-label">Permessi</div>
-<div class="summary-value" id="sumPermessi">0</div>
-</div>
-</div>
-
-<div class="grid grid-dashboard" style="margin-top:18px;">
-<div class="chart-wrap">
-<div class="chart-title">Distribuzione ore per stato</div>
-<div id="chartBars"></div>
-</div>
-
-<div class="chart-wrap">
-<div class="chart-title">Report pronto</div>
-<div id="reportBox" class="report-box">Premi "Genera report"</div>
-<div class="small" style="margin-top:8px;">Mail capo: m.colurci@gmail.com</div>
-</div>
-</div>
-</div>
-
-<div class="card">
 <h3>Presenze</h3>
-
 <div class="table-wrap">
 <table>
 <thead>
@@ -553,7 +300,6 @@ font-size:22px;
 <th>Ore</th>
 <th>Sede</th>
 <th>Note</th>
-<th>Azioni</th>
 </tr>
 </thead>
 <tbody id="tabella"></tbody>
@@ -567,16 +313,10 @@ font-size:22px;
 <script>
 const SUPABASE_URL = "https://nzmgjuwmrvjxpykzawkp.supabase.co"
 const SUPABASE_KEY = "sb_publishable_lwd5Lahd5CirK_RlQmhcBA_PTo6c14v"
-const BOSS_EMAIL = "m.colurci@gmail.com"
-const ADMIN_EMAIL = "m.colurci@gmail.com"
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 let user = null
-let presenze = []
-let editingId = null
-let lastReportText = ""
-let isAdmin = false
 
 function qs(id){
   return document.getElementById(id)
@@ -603,14 +343,6 @@ function escapeHtml(value){
     .replaceAll("'","&#039;")
 }
 
-function getBadgeClass(stato){
-  if(stato === "Presente") return "badge badge-presente"
-  if(stato === "Assente") return "badge badge-assente"
-  if(stato === "Ferie") return "badge badge-ferie"
-  if(stato === "Permesso") return "badge badge-permesso"
-  return "badge"
-}
-
 function todayISO(){
   const d = new Date()
   const year = d.getFullYear()
@@ -619,76 +351,20 @@ function todayISO(){
   return `${year}-${month}-${day}`
 }
 
-function currentMonthValue(){
-  const d = new Date()
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2,"0")
-  return `${year}-${month}`
-}
-
-function formatDate(dateString){
-  if(!dateString) return ""
-  const [y,m,d] = dateString.split("-")
-  if(!y || !m || !d) return dateString
-  return `${d}/${m}/${y}`
-}
-
-function extractNameFromEmail(email){
-  if(!email) return ""
-  const local = String(email).split("@")[0]
-  return local.replaceAll(".", " ").replaceAll("_", " ")
-}
-
-function applyRoleUi(){
-  if(qs("userInfo")) qs("userInfo").textContent = `Utente: ${user?.email || "-"}`
-  if(qs("roleInfo")){
-    qs("roleInfo").innerHTML = isAdmin
-      ? `Ruolo: <span class="role-admin">ADMIN</span>`
-      : `Ruolo: <span class="role-user">UTENTE</span>`
-  }
-
-  if(qs("adminFilterWrap")){
-    if(isAdmin){
-      qs("adminFilterWrap").classList.remove("hidden")
-    }else{
-      qs("adminFilterWrap").classList.add("hidden")
-      if(qs("filterEmployee")) qs("filterEmployee").value = ""
-    }
-  }
-}
-
 function showLogin(){
   user = null
-  isAdmin = false
-  presenze = []
-  editingId = null
-
-  if(qs("app")) qs("app").classList.add("hidden")
-  if(qs("loginBox")) qs("loginBox").classList.remove("hidden")
-  if(qs("userInfo")) qs("userInfo").textContent = "Utente: -"
-  if(qs("roleInfo")) qs("roleInfo").textContent = "Ruolo: -"
-  if(qs("tabella")) qs("tabella").innerHTML = ""
-  if(qs("reportBox")) qs("reportBox").textContent = 'Premi "Genera report"'
-  if(qs("chartBars")) qs("chartBars").innerHTML = ""
+  qs("app").classList.add("hidden")
+  qs("loginBox").classList.remove("hidden")
+  qs("userInfo").textContent = "Utente: -"
+  qs("tabella").innerHTML = ""
 }
 
 function showApp(currentUser){
   user = currentUser
-  isAdmin = String(user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
-
-  if(qs("loginBox")) qs("loginBox").classList.add("hidden")
-  if(qs("app")) qs("app").classList.remove("hidden")
-
-  applyRoleUi()
-
-  if(qs("filterMonth") && !qs("filterMonth").value){
-    qs("filterMonth").value = currentMonthValue()
-  }
-  if(qs("data") && !qs("data").value){
-    qs("data").value = todayISO()
-  }
-
-  clearForm()
+  qs("loginBox").classList.add("hidden")
+  qs("app").classList.remove("hidden")
+  qs("userInfo").textContent = `Utente: ${user.email || "-"}`
+  qs("data").value = todayISO()
   loadPresenze()
 }
 
@@ -713,8 +389,8 @@ async function checkSession(){
 
 async function login(){
   try{
-    const email = qs("email")?.value.trim()
-    const password = qs("password")?.value.trim()
+    const email = qs("email").value.trim()
+    const password = qs("password").value.trim()
 
     setAuthStatus("Tentativo di login...")
 
@@ -747,8 +423,8 @@ async function login(){
 
 async function register(){
   try{
-    const email = qs("email")?.value.trim()
-    const password = qs("password")?.value.trim()
+    const email = qs("email").value.trim()
+    const password = qs("password").value.trim()
 
     setAuthStatus("Tentativo di registrazione...")
 
@@ -784,41 +460,63 @@ async function register(){
   }
 }
 
-async function resetPassword(){
-  try{
-    const email = qs("email")?.value.trim()
-
-    if(!email){
-      setAuthStatus("Inserisci prima l'email")
-      return
-    }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
-
-    if(error){
-      setAuthStatus("Errore reset password: " + error.message)
-      return
-    }
-
-    setAuthStatus("Mail di reset inviata")
-  }catch(err){
-    setAuthStatus("Errore JS reset password: " + err.message)
-  }
-}
-
 async function logout(){
   await supabase.auth.signOut()
   showLogin()
   setAuthStatus("Logout effettuato")
 }
 
-function clearForm(){
-  if(qs("nome")) qs("nome").value = isAdmin ? "" : extractNameFromEmail(user?.email || "")
-  if(qs("data")) qs("data").value = todayISO()
-  if(qs("stato")) qs("stato").value = "Presente"
-  if(qs("ore")) qs("ore").value = ""
-  if(qs("sede")) qs("sede").value = ""
-  if(qs("note")) qs("note").value = ""
+async function addPresenza(){
+  try{
+    setAppStatus("")
+
+    if(!user){
+      setAppStatus("Devi fare login")
+      return
+    }
+
+    const nome = qs("nome").value.trim()
+    const data = qs("data").value
+    const stato = qs("stato").value
+    const ore = Number(qs("ore").value || 0)
+    const sede = qs("sede").value.trim()
+    const note = qs("note").value.trim()
+
+    if(!nome || !data){
+      setAppStatus("Compila almeno nome e data")
+      return
+    }
+
+    const { error } = await supabase
+      .from("presenze")
+      .insert([{
+        user_id: user.id,
+        email: user.email,
+        nome,
+        data,
+        stato,
+        ore,
+        sede,
+        note
+      }])
+
+    if(error){
+      setAppStatus("Errore inserimento: " + error.message)
+      return
+    }
+
+    qs("nome").value = ""
+    qs("data").value = todayISO()
+    qs("stato").value = "Presente"
+    qs("ore").value = ""
+    qs("sede").value = ""
+    qs("note").value = ""
+
+    setAppStatus("Presenza salvata")
+    loadPresenze()
+  }catch(err){
+    setAppStatus("Errore JS salvataggio: " + err.message)
+  }
 }
 
 async function loadPresenze(){
@@ -830,15 +528,36 @@ async function loadPresenze(){
     .order("data", { ascending: false })
     .order("id", { ascending: false })
 
+  const tabella = qs("tabella")
+  tabella.innerHTML = ""
+
   if(error){
-    if(qs("tabella")){
-      qs("tabella").innerHTML = `<tr><td colspan="7" class="empty">Errore caricamento: ${escapeHtml(error.message)}</td></tr>`
-    }
+    tabella.innerHTML = `<tr><td colspan="6" class="empty">Errore caricamento: ${escapeHtml(error.message)}</td></tr>`
     return
   }
 
-  presenze = data || []
+  if(!data || !data.length){
+    tabella.innerHTML = `<tr><td colspan="6" class="empty">Nessuna presenza trovata</td></tr>`
+    return
+  }
+
+  data.forEach(r => {
+    tabella.innerHTML += `
+      <tr>
+        <td>${escapeHtml(r.nome || "")}</td>
+        <td>${escapeHtml(r.data || "")}</td>
+        <td>${escapeHtml(r.stato || "")}</td>
+        <td>${escapeHtml(r.ore || 0)}</td>
+        <td>${escapeHtml(r.sede || "")}</td>
+        <td>${escapeHtml(r.note || "")}</td>
+      </tr>
+    `
+  })
 }
+
+window.addEventListener("error", function(event){
+  setAuthStatus("Errore JavaScript: " + event.message)
+})
 
 supabase.auth.onAuthStateChange((_event, session) => {
   if(session?.user){
@@ -846,10 +565,6 @@ supabase.auth.onAuthStateChange((_event, session) => {
   }else{
     showLogin()
   }
-})
-
-window.addEventListener("error", function(event){
-  setAuthStatus("Errore JavaScript: " + event.message)
 })
 
 checkSession()
