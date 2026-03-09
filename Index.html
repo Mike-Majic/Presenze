@@ -681,5 +681,86 @@
     resetForm();
     render();
   </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+const SUPABASE_URL = "https://nzmgjuwmrvjxpykzawkp.supabase.co"
+const SUPABASE_KEY = "sb_publishable_lwd5Lahd5CirK_RlQmhcBA_PTo6c14v"
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+let user = null
+
+async function login(email,password){
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email,
+    password: password
+  })
+
+  if(error){
+    alert("Errore login")
+    return
+  }
+
+  user = data.user
+  loadPresenze()
+}
+
+async function register(email,password){
+
+  const { error } = await supabase.auth.signUp({
+    email: email,
+    password: password
+  })
+
+  if(error){
+    alert("Errore registrazione")
+  }else{
+    alert("Registrazione completata")
+  }
+}
+
+async function addPresenza(nome,data,stato,ore,sede,note){
+
+  const { error } = await supabase
+  .from("presenze")
+  .insert([
+    {
+      user_id:user.id,
+      email:user.email,
+      nome:nome,
+      data:data,
+      stato:stato,
+      ore:ore,
+      sede:sede,
+      note:note
+    }
+  ])
+
+  if(error){
+    alert("Errore inserimento")
+  }else{
+    loadPresenze()
+  }
+
+}
+
+async function loadPresenze(){
+
+  const { data, error } = await supabase
+  .from("presenze")
+  .select("*")
+  .order("data",{ascending:false})
+
+  if(error) return
+
+  console.log(data)
+
+}
+
+</script>
+
 </body>
 </html>
