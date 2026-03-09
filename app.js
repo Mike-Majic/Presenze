@@ -437,41 +437,7 @@ function renderSummary(rows){
 }
 
 function renderTable(rows){
-  const tabella = qs("tabella")
-  tabella.innerHTML = ""
 
-  if(!rows.length){
-    tabella.innerHTML = `<tr><td colspan="7" class="empty">Nessuna presenza trovata</td></tr>`
-    return
-  }
-
-  rows.forEach(r => {
-    tabella.innerHTML += `
-      <tr>
-        <td>${escapeHtml(r.nome || "")}</td>
-        <td>${escapeHtml(formatDate(r.data))}</td>
-        <td><span class="${getBadgeClass(r.stato)}">${escapeHtml(r.stato || "")}</span></td>
-        <td>${escapeHtml(Number(r.ore || 0).toFixed(2).replace(".00",""))}</td>
-        <td>${escapeHtml(r.sede || "")}</td>
-        <td>${escapeHtml(r.note || "")}</td>
-        <td>
-          <div class="table-buttons">
-            <button class="btn-blue" data-edit-id="${r.id}">Modifica</button>
-            <button class="btn-red" data-delete-id="${r.id}">Elimina</button>
-          </div>
-        </td>
-      </tr>
-    `
-  })
-
-  document.querySelectorAll("[data-edit-id]").forEach(btn => {
-    btn.addEventListener("click", () => editPresenza(Number(btn.dataset.editId)))
-  })
-
-  document.querySelectorAll("[data-delete-id]").forEach(btn => {
-    btn.addEventListener("click", () => deletePresenza(Number(btn.dataset.deleteId)))
-  })
-}
 
 function editPresenza(id){
   const row = presenze.find(x => x.id === id)
