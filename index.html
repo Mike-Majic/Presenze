@@ -18,19 +18,19 @@
       <div class="grid">
         <div>
           <label>Email</label>
-<input id="email" type="email" placeholder="nome@email.it" autocomplete="email" inputmode="email">
+          <input id="email" type="email" placeholder="nome@email.it" autocomplete="email" inputmode="email">
         </div>
 
         <div>
           <label>Password</label>
-<input id="password" type="password" placeholder="Password" autocomplete="current-password">
+          <input id="password" type="password" placeholder="Password" autocomplete="current-password">
         </div>
       </div>
 
       <div class="actions">
-<button type="button" class="btn-green" id="btnLogin">Login</button>
-<button type="button" class="btn-orange" id="btnRegister">Registrati</button>
-<button type="button" class="btn-blue" id="btnResetPassword">Reset password</button>
+        <button type="button" class="btn-green" id="btnLogin">Login</button>
+        <button type="button" class="btn-orange" id="btnRegister">Registrati</button>
+        <button type="button" class="btn-blue" id="btnResetPassword">Reset password</button>
       </div>
 
       <div id="authStatus" class="status"></div>
@@ -42,7 +42,8 @@
         <div class="pill" id="userInfo">Utente: -</div>
         <div class="pill" id="roleInfo">Ruolo: -</div>
         <div class="actions topbar-actions">
-          <button class="btn-red" id="btnLogout">Logout</button>
+          <button type="button" class="btn-orange hidden" id="btnManageUsers">Gestione utenti</button>
+          <button type="button" class="btn-red" id="btnLogout">Logout</button>
         </div>
       </div>
 
@@ -72,7 +73,7 @@
 
           <div>
             <label>Ore</label>
-<input id="ore" type="number" step="0.5" min="0" placeholder="0">
+            <input id="ore" type="number" step="0.5" min="0" placeholder="0">
           </div>
 
           <div>
@@ -87,8 +88,8 @@
         </div>
 
         <div class="actions">
-          <button id="saveBtn" class="btn-green">Salva presenza</button>
-          <button id="cancelEditBtn" class="btn-gray hidden">Annulla modifica</button>
+          <button type="button" id="saveBtn" class="btn-green">Salva presenza</button>
+          <button type="button" id="cancelEditBtn" class="btn-gray hidden">Annulla modifica</button>
         </div>
 
         <div id="appStatus" class="status"></div>
@@ -128,11 +129,11 @@
         </div>
 
         <div class="actions">
-          <button class="btn-blue" id="btnResetFilters">Reset filtri</button>
-          <button class="btn-pink" id="btnGenerateReport">Genera report</button>
-          <button class="btn-orange" id="btnCopyReport">Copia report</button>
-          <button class="btn-green" id="btnSendReport">Invia al capo</button>
-          <button class="btn-blue" id="btnExportCsv">Export CSV</button>
+          <button type="button" class="btn-blue" id="btnResetFilters">Reset filtri</button>
+          <button type="button" class="btn-pink" id="btnGenerateReport">Genera report</button>
+          <button type="button" class="btn-orange" id="btnCopyReport">Copia report</button>
+          <button type="button" class="btn-green" id="btnSendReport">Invia al capo</button>
+          <button type="button" class="btn-blue" id="btnExportCsv">Export CSV</button>
         </div>
 
         <div class="summary-grid">
