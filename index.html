@@ -211,6 +211,50 @@
         </div>
       </div>
 
+      <div class="card hidden" id="adminSupportCard">
+        <h3>Richieste supporto admin</h3>
+
+        <div class="actions">
+          <button type="button" class="btn-blue" id="btnRefreshSupport">Aggiorna richieste</button>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-box">
+            <div class="summary-label">Nuove</div>
+            <div class="summary-value" id="supportCountNew">0</div>
+          </div>
+
+          <div class="summary-box">
+            <div class="summary-label">Chiuse</div>
+            <div class="summary-value" id="supportCountDone">0</div>
+          </div>
+
+          <div class="summary-box">
+            <div class="summary-label">Archiviate</div>
+            <div class="summary-value" id="supportCountArchived">0</div>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="margin-top:16px;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tipo</th>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Note</th>
+                <th>Origine</th>
+                <th>Data</th>
+                <th>Stato</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="supportTable"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card">
         <h3>Presenze</h3>
 
