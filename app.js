@@ -15,6 +15,7 @@ let loginInCorso = false
 let registerInCorso = false
 let helpRequestInCorso = false
 let resetRequestInCorso = false
+let supportRequests = []
 
 function qs(id){
   return document.getElementById(id)
@@ -34,7 +35,6 @@ function setModalStatus(id, msg){
   const el = qs(id)
   if(el) el.textContent = msg || ""
 }
-
 
 function formatRemainingTime(ms){
   const totalMinutes = Math.ceil(ms / 60000)
@@ -62,6 +62,31 @@ async function invokeEdgeFunction(functionName, payload){
   return data || {}
 }
 
+async function apiFetch(path, options = {}){
+  const { data: sessionData, error: sessionError } = await sb.auth.getSession()
+
+  if(sessionError || !sessionData?.session){
+    throw new Error("Sessione non valida")
+  }
+
+  const response = await fetch(path, {
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${sessionData.session.access_token}`
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if(!response.ok){
+    throw new Error(data.error || "Errore API")
+  }
+
+  return data
+}
+
 function showOverlay(){
   if(qs("overlay")) qs("overlay").classList.remove("hidden")
 }
@@ -84,6 +109,7 @@ function closeModal(modalId){
 
   const helpHidden = qs("helpModal")?.classList.contains("hidden") !== false
   const resetHidden = qs("resetRequestModal")?.classList.contains("hidden") !== false
+
   if(helpHidden && resetHidden){
     hideOverlay()
   }
@@ -91,8 +117,14 @@ function closeModal(modalId){
 
 function fillLoginSupportDefaults(){
   const email = qs("email")?.value.trim() || ""
-  if(qs("helpEmail") && !qs("helpEmail").value.trim()) qs("helpEmail").value = email
-  if(qs("resetRequestEmail") && !qs("resetRequestEmail").value.trim()) qs("resetRequestEmail").value = email
+
+  if(qs("helpEmail") && !qs("helpEmail").value.trim()){
+    qs("helpEmail").value = email
+  }
+
+  if(qs("resetRequestEmail") && !qs("resetRequestEmail").value.trim()){
+    qs("resetRequestEmail").value = email
+  }
 }
 
 function togglePasswordVisibility(){
@@ -125,7 +157,6 @@ function closeResetRequestModal(){
   closeModal("resetRequestModal")
 }
 
-
 function todayISO(){
   const d = new Date()
   const y = d.getFullYear()
@@ -147,6 +178,19 @@ function formatDate(dateString){
   return `${d}/${m}/${y}`
 }
 
+function formatDateTime(value){
+  if(!value) return "-"
+  const d = new Date(value)
+  if(Number.isNaN(d.getTime())) return "-"
+  return d.toLocaleString("it-IT")
+}
+
+function supportTypeLabel(type){
+  if(type === "help") return "AIUTO"
+  if(type === "reset_password") return "RESET PASSWORD"
+  return type || "-"
+}
+
 function getDisplayName(profile, fallbackEmail = ""){
   const nome = (profile?.nome || "").trim()
   const cognome = (profile?.cognome || "").trim()
@@ -156,19 +200,23 @@ function getDisplayName(profile, fallbackEmail = ""){
 
 function showRegisterMode(){
   isRegisterMode = true
+
   if(qs("registerFields")) qs("registerFields").classList.remove("hidden")
   if(qs("btnRegister")) qs("btnRegister").classList.remove("hidden")
   if(qs("btnCancelRegister")) qs("btnCancelRegister").classList.remove("hidden")
   if(qs("btnRegisterMode")) qs("btnRegisterMode").classList.add("hidden")
+
   setAuthStatus("Compila nome, cognome, email e password per registrarti")
 }
 
 function hideRegisterMode(){
   isRegisterMode = false
+
   if(qs("registerFields")) qs("registerFields").classList.add("hidden")
   if(qs("btnRegister")) qs("btnRegister").classList.add("hidden")
   if(qs("btnCancelRegister")) qs("btnCancelRegister").classList.add("hidden")
   if(qs("btnRegisterMode")) qs("btnRegisterMode").classList.remove("hidden")
+
   setAuthStatus("")
 }
 
@@ -283,6 +331,7 @@ async function showApp(user){
   const roleInfo = qs("roleInfo")
   const adminFilterWrap = qs("adminFilterWrap")
   const btnManageUsers = qs("btnManageUsers")
+  const adminSupportCard = qs("adminSupportCard")
 
   if(loginBox) loginBox.classList.add("hidden")
   if(app) app.classList.remove("hidden")
@@ -305,6 +354,10 @@ async function showApp(user){
     btnManageUsers.classList.toggle("hidden", !isAdmin)
   }
 
+  if(adminSupportCard){
+    adminSupportCard.classList.toggle("hidden", !isAdmin)
+  }
+
   clearForm()
 
   if(qs("filterMonth") && !qs("filterMonth").value){
@@ -312,6 +365,10 @@ async function showApp(user){
   }
 
   await loadPresenze()
+
+  if(isAdmin){
+    await loadSupportRequests()
+  }
 }
 
 async function login(){
@@ -395,7 +452,7 @@ async function registerUser(){
     registerInCorso = true
     if(btn) btn.disabled = true
 
-    const result = await sb.auth.signUp({
+    const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: {
@@ -405,8 +462,6 @@ async function registerUser(){
         }
       }
     })
-
-    const { data, error } = result
 
     if(error){
       const msg = (error.message || "").toLowerCase()
@@ -546,9 +601,12 @@ async function logout(){
     currentProfile = null
     isAdmin = false
     presenze = []
+    supportRequests = []
     editingId = null
 
     renderTable([])
+    renderSupportRequests()
+    updateSupportSummary()
     clearForm()
     showLogin()
     setAuthStatus("Logout effettuato")
@@ -734,6 +792,72 @@ function renderTable(rows){
   })
 }
 
+function renderSupportRequests(){
+  const tbody = qs("supportTable")
+  if(!tbody) return
+
+  tbody.innerHTML = ""
+
+  if(!supportRequests.length){
+    tbody.innerHTML = `<tr><td colspan="9">Nessuna richiesta supporto</td></tr>`
+    return
+  }
+
+  supportRequests.forEach(r => {
+    const tr = document.createElement("tr")
+
+    tr.innerHTML = `
+      <td data-label="ID">${r.id}</td>
+      <td data-label="Tipo">${supportTypeLabel(r.request_type)}</td>
+      <td data-label="Nome">${r.nome || "-"}</td>
+      <td data-label="Email">${r.email || "-"}</td>
+      <td data-label="Note">${r.note || "-"}</td>
+      <td data-label="Origine">${r.source || "-"}</td>
+      <td data-label="Data">${formatDateTime(r.created_at)}</td>
+      <td data-label="Stato">${r.status || "-"}</td>
+      <td data-label="Azioni">
+        <div class="table-buttons" id="support-actions-${r.id}"></div>
+      </td>
+    `
+
+    tbody.appendChild(tr)
+
+    const wrap = qs(`support-actions-${r.id}`)
+    if(!wrap) return
+
+    const btnDone = document.createElement("button")
+    btnDone.type = "button"
+    btnDone.className = "btn-green"
+    btnDone.textContent = "Chiudi"
+    btnDone.onclick = () => updateSupportStatus(r.id, "done")
+
+    const btnArchive = document.createElement("button")
+    btnArchive.type = "button"
+    btnArchive.className = "btn-gray"
+    btnArchive.textContent = "Archivia"
+    btnArchive.onclick = () => updateSupportStatus(r.id, "archived")
+
+    const btnNew = document.createElement("button")
+    btnNew.type = "button"
+    btnNew.className = "btn-blue"
+    btnNew.textContent = "Riapri"
+    btnNew.onclick = () => updateSupportStatus(r.id, "new")
+
+    wrap.appendChild(btnDone)
+    wrap.appendChild(btnArchive)
+    wrap.appendChild(btnNew)
+
+    if(r.request_type === "reset_password"){
+      const btnDirectReset = document.createElement("button")
+      btnDirectReset.type = "button"
+      btnDirectReset.className = "btn-orange"
+      btnDirectReset.textContent = "Invia reset diretto"
+      btnDirectReset.onclick = () => adminDirectReset(r.email, r.id)
+      wrap.appendChild(btnDirectReset)
+    }
+  })
+}
+
 function editPresenza(id){
   const r = presenze.find(x => String(x.id) === String(id))
   if(!r) return
@@ -754,6 +878,7 @@ function editPresenza(id){
 function cancelEdit(){
   editingId = null
   clearForm()
+
   if(qs("formTitle")) qs("formTitle").textContent = "Inserisci presenza"
   if(qs("cancelEditBtn")) qs("cancelEditBtn").classList.add("hidden")
 }
@@ -816,6 +941,73 @@ function updateSummary(rows){
   if(qs("sum104")) qs("sum104").textContent = String(legge104)
 }
 
+function updateSupportSummary(){
+  const rows = supportRequests || []
+
+  const newCount = rows.filter(r => r.status === "new").length
+  const doneCount = rows.filter(r => r.status === "done").length
+  const archivedCount = rows.filter(r => r.status === "archived").length
+
+  if(qs("supportCountNew")) qs("supportCountNew").textContent = String(newCount)
+  if(qs("supportCountDone")) qs("supportCountDone").textContent = String(doneCount)
+  if(qs("supportCountArchived")) qs("supportCountArchived").textContent = String(archivedCount)
+  if(qs("supportBadgeNew")) qs("supportBadgeNew").textContent = String(newCount)
+}
+
+async function loadSupportRequests(){
+  if(!isAdmin) return
+
+  try{
+    const result = await apiFetch("/api/admin/support-list")
+    supportRequests = result.requests || []
+    renderSupportRequests()
+    updateSupportSummary()
+  }catch(err){
+    console.error("LOAD SUPPORT REQUESTS ERROR", err)
+    setAppStatus("Errore caricamento richieste supporto: " + err.message)
+  }
+}
+
+async function updateSupportStatus(id, status){
+  try{
+    await apiFetch("/api/admin/support-status", {
+      method: "POST",
+      body: { id, status }
+    })
+
+    await loadSupportRequests()
+    setAppStatus(`Richiesta ${id} aggiornata`)
+  }catch(err){
+    console.error("UPDATE SUPPORT STATUS ERROR", err)
+    setAppStatus("Errore aggiornamento richiesta: " + err.message)
+  }
+}
+
+async function adminDirectReset(email, requestId = null){
+  const ok = window.confirm(`Inviare la mail di reset password a ${email}?`)
+  if(!ok) return
+
+  try{
+    await apiFetch("/api/admin/reset-password", {
+      method: "POST",
+      body: { email }
+    })
+
+    if(requestId){
+      await apiFetch("/api/admin/support-status", {
+        method: "POST",
+        body: { id: requestId, status: "done" }
+      })
+    }
+
+    await loadSupportRequests()
+    setAppStatus("Mail reset password inviata")
+  }catch(err){
+    console.error("ADMIN DIRECT RESET ERROR", err)
+    setAppStatus("Errore invio reset diretto: " + err.message)
+  }
+}
+
 function exportCsv(){
   const rows = getFilteredPresenze()
 
@@ -859,9 +1051,11 @@ function goManageUsers(){
 
 function bindEvents(){
   if(qs("btnTogglePassword")) qs("btnTogglePassword").onclick = togglePasswordVisibility
+
   if(qs("btnHelp")) qs("btnHelp").onclick = openHelpModal
   if(qs("btnCloseHelp")) qs("btnCloseHelp").onclick = closeHelpModal
   if(qs("btnSendHelp")) qs("btnSendHelp").onclick = sendHelpRequest
+
   if(qs("btnRequestReset")) qs("btnRequestReset").onclick = openResetRequestModal
   if(qs("btnCloseResetRequest")) qs("btnCloseResetRequest").onclick = closeResetRequestModal
   if(qs("btnSendResetRequest")) qs("btnSendResetRequest").onclick = sendResetRequest
@@ -870,6 +1064,7 @@ function bindEvents(){
   if(qs("btnRegisterMode")) qs("btnRegisterMode").onclick = showRegisterMode
   if(qs("btnRegister")) qs("btnRegister").onclick = registerUser
   if(qs("btnCancelRegister")) qs("btnCancelRegister").onclick = hideRegisterMode
+
   if(qs("btnLogout")) qs("btnLogout").onclick = logout
   if(qs("btnManageUsers")) qs("btnManageUsers").onclick = goManageUsers
 
@@ -878,14 +1073,18 @@ function bindEvents(){
 
   if(qs("btnExportCsv")) qs("btnExportCsv").onclick = exportCsv
   if(qs("btnResetFilters")) qs("btnResetFilters").onclick = resetFilters
+  if(qs("btnRefreshSupport")) qs("btnRefreshSupport").onclick = loadSupportRequests
 
   if(qs("filterMonth")) qs("filterMonth").onchange = applyFilters
   if(qs("filterState")) qs("filterState").onchange = applyFilters
   if(qs("filterName")) qs("filterName").oninput = applyFilters
   if(qs("filterEmployee")) qs("filterEmployee").onchange = applyFilters
-  if(qs("overlay")) qs("overlay").onclick = () => {
-    closeHelpModal()
-    closeResetRequestModal()
+
+  if(qs("overlay")){
+    qs("overlay").onclick = () => {
+      closeHelpModal()
+      closeResetRequestModal()
+    }
   }
 
   document.addEventListener("keydown", event => {
@@ -895,6 +1094,9 @@ function bindEvents(){
     }
   })
 }
+
+window.editPresenza = editPresenza
+window.deletePresenza = deletePresenza
 
 window.addEventListener("DOMContentLoaded", async () => {
   bindEvents()
@@ -906,7 +1108,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if(data?.session?.user){
     await showApp(data.session.user)
-  } else {
+  }else{
     showLogin()
   }
 
@@ -918,7 +1120,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 sb.auth.onAuthStateChange(async (_event, session) => {
   if(session?.user){
     await showApp(session.user)
-  } else {
+  }else{
     showLogin()
   }
 })
