@@ -11,6 +11,10 @@ let isAdmin = false
 let presenze = []
 let editingId = null
 let isRegisterMode = false
+let loginInCorso = false
+let registerInCorso = false
+let helpRequestInCorso = false
+let resetRequestInCorso = false
 
 function qs(id){
   return document.getElementById(id)
@@ -25,6 +29,102 @@ function setAppStatus(msg){
   const el = qs("appStatus")
   if(el) el.textContent = msg || ""
 }
+
+function setModalStatus(id, msg){
+  const el = qs(id)
+  if(el) el.textContent = msg || ""
+}
+
+
+function formatRemainingTime(ms){
+  const totalMinutes = Math.ceil(ms / 60000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if(hours <= 0) return `${minutes} minuti`
+  if(minutes === 0) return `${hours} ore`
+  return `${hours} ore e ${minutes} minuti`
+}
+
+async function invokeEdgeFunction(functionName, payload){
+  const { data, error } = await sb.functions.invoke(functionName, {
+    body: payload
+  })
+
+  if(error){
+    throw error
+  }
+
+  if(data?.error){
+    throw new Error(data.error)
+  }
+
+  return data || {}
+}
+
+function showOverlay(){
+  if(qs("overlay")) qs("overlay").classList.remove("hidden")
+}
+
+function hideOverlay(){
+  if(qs("overlay")) qs("overlay").classList.add("hidden")
+}
+
+function openModal(modalId){
+  const modal = qs(modalId)
+  if(!modal) return
+  modal.classList.remove("hidden")
+  showOverlay()
+}
+
+function closeModal(modalId){
+  const modal = qs(modalId)
+  if(!modal) return
+  modal.classList.add("hidden")
+
+  const helpHidden = qs("helpModal")?.classList.contains("hidden") !== false
+  const resetHidden = qs("resetRequestModal")?.classList.contains("hidden") !== false
+  if(helpHidden && resetHidden){
+    hideOverlay()
+  }
+}
+
+function fillLoginSupportDefaults(){
+  const email = qs("email")?.value.trim() || ""
+  if(qs("helpEmail") && !qs("helpEmail").value.trim()) qs("helpEmail").value = email
+  if(qs("resetRequestEmail") && !qs("resetRequestEmail").value.trim()) qs("resetRequestEmail").value = email
+}
+
+function togglePasswordVisibility(){
+  const input = qs("password")
+  const btn = qs("btnTogglePassword")
+  if(!input || !btn) return
+
+  const show = input.type === "password"
+  input.type = show ? "text" : "password"
+  btn.textContent = show ? "🙈" : "👁"
+}
+
+function openHelpModal(){
+  fillLoginSupportDefaults()
+  setModalStatus("helpStatus", "")
+  openModal("helpModal")
+}
+
+function closeHelpModal(){
+  closeModal("helpModal")
+}
+
+function openResetRequestModal(){
+  fillLoginSupportDefaults()
+  setModalStatus("resetRequestStatus", "")
+  openModal("resetRequestModal")
+}
+
+function closeResetRequestModal(){
+  closeModal("resetRequestModal")
+}
+
 
 function todayISO(){
   const d = new Date()
@@ -215,15 +315,20 @@ async function showApp(user){
 }
 
 async function login(){
+  if(loginInCorso) return
+
   try{
     const email = qs("email")?.value.trim() || ""
-    const password = qs("password")?.value.trim() || ""
+    const password = qs("password")?.value || ""
+    const btn = qs("btnLogin")
 
     if(!email || !password){
       setAuthStatus("Inserisci email e password")
       return
     }
 
+    loginInCorso = true
+    if(btn) btn.disabled = true
     setAuthStatus("Accesso in corso ..")
 
     const { data, error } = await sb.auth.signInWithPassword({
@@ -246,6 +351,11 @@ async function login(){
         return
       }
 
+      if(msg.includes("too many requests") || msg.includes("rate limit")){
+        setAuthStatus("Troppi tentativi ravvicinati .. aspetta un attimo e riprova")
+        return
+      }
+
       setAuthStatus("Errore login: " + error.message)
       return
     }
@@ -255,15 +365,22 @@ async function login(){
   }catch(err){
     console.error("LOGIN ERROR", err)
     setAuthStatus("Errore login")
+  }finally{
+    loginInCorso = false
+    const btn = qs("btnLogin")
+    if(btn) btn.disabled = false
   }
 }
 
 async function registerUser(){
+  if(registerInCorso) return
+
   try{
     const nome = qs("nomeRegister")?.value.trim() || ""
     const cognome = qs("cognomeRegister")?.value.trim() || ""
     const email = qs("email")?.value.trim() || ""
-    const password = qs("password")?.value.trim() || ""
+    const password = qs("password")?.value || ""
+    const btn = qs("btnRegister")
 
     if(!nome || !cognome || !email || !password){
       setAuthStatus("Compila nome, cognome, email e password")
@@ -274,6 +391,9 @@ async function registerUser(){
       setAuthStatus("La password deve avere almeno 6 caratteri")
       return
     }
+
+    registerInCorso = true
+    if(btn) btn.disabled = true
 
     const result = await sb.auth.signUp({
       email,
@@ -319,31 +439,97 @@ async function registerUser(){
   }catch(err){
     console.error("REGISTER ERROR", err)
     setAuthStatus("Errore registrazione")
+  }finally{
+    registerInCorso = false
+    const btn = qs("btnRegister")
+    if(btn) btn.disabled = false
   }
 }
 
-async function resetPassword(){
+async function sendResetRequest(){
+  if(resetRequestInCorso) return
+
+  const email = qs("resetRequestEmail")?.value.trim() || qs("email")?.value.trim() || ""
+  const note = qs("resetRequestNote")?.value.trim() || ""
+  const btn = qs("btnSendResetRequest")
+
+  if(!email){
+    setModalStatus("resetRequestStatus", "Inserisci la mail dell'account")
+    return
+  }
+
   try{
-    const email = qs("email")?.value.trim() || ""
+    resetRequestInCorso = true
+    if(btn) btn.disabled = true
+    setModalStatus("resetRequestStatus", "Invio richiesta in corso ..")
 
-    if(!email){
-      setAuthStatus("Inserisci l'email dell'account")
-      return
-    }
-
-    const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin
+    const result = await invokeEdgeFunction("reset-request", {
+      email,
+      note,
+      source: "login"
     })
 
-    if(error){
-      setAuthStatus("Errore reset password: " + error.message)
+    const remainingMs = Number(result?.remaining_ms || 0)
+    if(remainingMs > 0){
+      setModalStatus("resetRequestStatus", `Richiesta già inviata .. riprova tra ${formatRemainingTime(remainingMs)}`)
       return
     }
 
-    setAuthStatus("Email reset inviata .. controlla la posta")
+    setModalStatus("resetRequestStatus", "Richiesta inviata all'amministratore")
+    setAuthStatus("Richiesta reset password inviata all'amministratore")
+
+    setTimeout(() => {
+      closeResetRequestModal()
+      if(qs("resetRequestNote")) qs("resetRequestNote").value = ""
+    }, 500)
   }catch(err){
-    console.error("RESET PASSWORD ERROR", err)
-    setAuthStatus("Errore reset password")
+    console.error("RESET REQUEST ERROR", err)
+    setModalStatus("resetRequestStatus", err?.message || "Errore invio richiesta reset password")
+  }finally{
+    resetRequestInCorso = false
+    if(btn) btn.disabled = false
+  }
+}
+
+async function sendHelpRequest(){
+  if(helpRequestInCorso) return
+
+  const nome = qs("helpNome")?.value.trim() || ""
+  const email = qs("helpEmail")?.value.trim() || qs("email")?.value.trim() || ""
+  const note = qs("helpNote")?.value.trim() || ""
+  const btn = qs("btnSendHelp")
+
+  if(!nome || !email || !note){
+    setModalStatus("helpStatus", "Compila nome e cognome, mail e note")
+    return
+  }
+
+  try{
+    helpRequestInCorso = true
+    if(btn) btn.disabled = true
+    setModalStatus("helpStatus", "Invio richiesta in corso ..")
+
+    await invokeEdgeFunction("help-request", {
+      nome,
+      email,
+      note,
+      source: "login"
+    })
+
+    setModalStatus("helpStatus", "Richiesta inviata all'amministratore")
+    setAuthStatus("Richiesta aiuto inviata all'amministratore")
+
+    setTimeout(() => {
+      closeHelpModal()
+      if(qs("helpNome")) qs("helpNome").value = ""
+      if(qs("helpNote")) qs("helpNote").value = ""
+    }, 500)
+  }catch(err){
+    console.error("HELP REQUEST ERROR", err)
+    setModalStatus("helpStatus", err?.message || "Errore invio richiesta aiuto")
+  }finally{
+    helpRequestInCorso = false
+    if(btn) btn.disabled = false
   }
 }
 
@@ -672,11 +858,18 @@ function goManageUsers(){
 }
 
 function bindEvents(){
+  if(qs("btnTogglePassword")) qs("btnTogglePassword").onclick = togglePasswordVisibility
+  if(qs("btnHelp")) qs("btnHelp").onclick = openHelpModal
+  if(qs("btnCloseHelp")) qs("btnCloseHelp").onclick = closeHelpModal
+  if(qs("btnSendHelp")) qs("btnSendHelp").onclick = sendHelpRequest
+  if(qs("btnRequestReset")) qs("btnRequestReset").onclick = openResetRequestModal
+  if(qs("btnCloseResetRequest")) qs("btnCloseResetRequest").onclick = closeResetRequestModal
+  if(qs("btnSendResetRequest")) qs("btnSendResetRequest").onclick = sendResetRequest
+
   if(qs("btnLogin")) qs("btnLogin").onclick = login
   if(qs("btnRegisterMode")) qs("btnRegisterMode").onclick = showRegisterMode
   if(qs("btnRegister")) qs("btnRegister").onclick = registerUser
   if(qs("btnCancelRegister")) qs("btnCancelRegister").onclick = hideRegisterMode
-  if(qs("btnResetPassword")) qs("btnResetPassword").onclick = resetPassword
   if(qs("btnLogout")) qs("btnLogout").onclick = logout
   if(qs("btnManageUsers")) qs("btnManageUsers").onclick = goManageUsers
 
@@ -690,6 +883,17 @@ function bindEvents(){
   if(qs("filterState")) qs("filterState").onchange = applyFilters
   if(qs("filterName")) qs("filterName").oninput = applyFilters
   if(qs("filterEmployee")) qs("filterEmployee").onchange = applyFilters
+  if(qs("overlay")) qs("overlay").onclick = () => {
+    closeHelpModal()
+    closeResetRequestModal()
+  }
+
+  document.addEventListener("keydown", event => {
+    if(event.key === "Escape"){
+      closeHelpModal()
+      closeResetRequestModal()
+    }
+  })
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
