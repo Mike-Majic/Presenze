@@ -86,7 +86,8 @@ input,select,textarea{
   border:1px solid rgba(255,255,255,.05);
 }
 
-input::placeholder, textarea::placeholder{
+input::placeholder,
+textarea::placeholder{
   color:#b7c4d3;
 }
 
@@ -229,7 +230,7 @@ th{
 
 td{
   background:rgba(51,65,85,.92);
-  padding:12px;
+  padding:10px 8px;
   text-align:center;
   font-size:14px;
   border-top:1px solid rgba(255,255,255,.06);
@@ -244,16 +245,42 @@ td{
 
 .table-buttons{
   display:flex;
-  gap:8px;
+  gap:6px;
   justify-content:center;
+  align-items:center;
   flex-wrap:wrap;
 }
 
 .table-buttons button{
   width:auto;
-  padding:8px 12px;
+  min-width:84px;
+  padding:7px 10px;
   border-radius:10px;
-  font-size:13px;
+  font-size:12px;
+  line-height:1.1;
+  flex:0 0 auto;
+}
+
+td:last-child{
+  width:1%;
+  white-space:nowrap;
+}
+
+td:last-child .btn-blue,
+td:last-child .btn-orange,
+td:last-child .btn-red,
+td:last-child .btn-green,
+td:last-child .btn-gray{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:auto;
+  min-width:84px;
+  padding:7px 10px;
+  font-size:12px;
+  border-radius:10px;
+  white-space:nowrap;
+  margin:2px;
 }
 
 .badge{
@@ -447,12 +474,14 @@ td{
   }
 
   .table-buttons{
-    justify-content:stretch;
-    gap:8px;
+    justify-content:flex-start;
+    gap:6px;
   }
 
   .table-buttons button{
-    width:100%;
+    width:auto;
+    min-width:78px;
+    flex:0 0 auto;
   }
 }
 
