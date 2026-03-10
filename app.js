@@ -29,52 +29,67 @@ function setAppStatus(msg){
 function todayISO(){
   const d = new Date()
   const y = d.getFullYear()
-  const m = String(d.getMonth()+1).padStart(2,"0")
-  const day = String(d.getDate()).padStart(2,"0")
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
   return `${y}-${m}-${day}`
 }
 
 function currentMonthValue(){
   const d = new Date()
   const y = d.getFullYear()
-  const m = String(d.getMonth()+1).padStart(2,"0")
+  const m = String(d.getMonth() + 1).padStart(2, "0")
   return `${y}-${m}`
 }
 
 function formatDate(dateString){
   if(!dateString) return ""
-  const [y,m,d] = dateString.split("-")
+  const [y, m, d] = dateString.split("-")
   return `${d}/${m}/${y}`
 }
 
 function showLogin(){
-  qs("loginBox").classList.remove("hidden")
-  qs("app").classList.add("hidden")
+  const loginBox = qs("loginBox")
+  const app = qs("app")
+
+  if(loginBox) loginBox.classList.remove("hidden")
+  if(app) app.classList.add("hidden")
 }
 
-function showApp(user){
-
+async function showApp(user){
   currentUser = user
-  isAdmin = user.email === ADMIN_EMAIL
+  isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
-  qs("loginBox").classList.add("hidden")
-  qs("app").classList.remove("hidden")
+  const loginBox = qs("loginBox")
+  const app = qs("app")
+  const userInfo = qs("userInfo")
+  const roleInfo = qs("roleInfo")
 
-  qs("userInfo").textContent = `Utente: ${user.email}`
+  if(loginBox) loginBox.classList.add("hidden")
+  if(app) app.classList.remove("hidden")
 
-  qs("roleInfo").innerHTML = isAdmin
-  ? 'Ruolo: <span class="role-admin">ADMIN</span>'
-  : 'Ruolo: <span class="role-user">UTENTE</span>'
+  if(userInfo){
+    userInfo.textContent = `Utente: ${user.email || ""}`
+  }
 
-  loadPresenze()
+  if(roleInfo){
+    roleInfo.innerHTML = isAdmin
+      ? 'Ruolo: <span class="role-admin">ADMIN</span>'
+      : 'Ruolo: <span class="role-user">UTENTE</span>'
+  }
+
+  await loadPresenze()
 }
 
 async function login(){
+  const email = qs("email")?.value.trim() || ""
+  const password = qs("password")?.value.trim() || ""
 
-  const email = qs("email").value.trim()
-  const password = qs("password").value.trim()
+  if(!email || !password){
+    setAuthStatus("Inserisci email e password")
+    return
+  }
 
-  const { data,error } = await sb.auth.signInWithPassword({
+  const { data, error } = await sb.auth.signInWithPassword({
     email,
     password
   })
@@ -84,15 +99,25 @@ async function login(){
     return
   }
 
-  showApp(data.user)
+  setAuthStatus("")
+  await showApp(data.user)
 }
 
 async function registerUser(){
+  const email = qs("email")?.value.trim() || ""
+  const password = qs("password")?.value.trim() || ""
 
-  const email = qs("email").value.trim()
-  const password = qs("password").value.trim()
+  if(!email || !password){
+    setAuthStatus("Inserisci email e password")
+    return
+  }
 
-  const { error } = await sb.auth.signUp({
+  if(password.length < 6){
+    setAuthStatus("La password deve avere almeno 6 caratteri")
+    return
+  }
+
+  const { data, error } = await sb.auth.signUp({
     email,
     password
   })
@@ -102,17 +127,26 @@ async function registerUser(){
     return
   }
 
-  setAuthStatus("Utente creato")
+  if(data?.user && !data?.session){
+    setAuthStatus("Utente creato .. controlla la mail per confermare l'account")
+    return
+  }
+
+  setAuthStatus("Utente creato con successo")
 }
 
 async function resetPassword(){
+  const email = qs("email")?.value.trim() || ""
 
-  const email = qs("email").value.trim()
+  if(!email){
+    setAuthStatus("Inserisci l'email")
+    return
+  }
 
   const { error } = await sb.auth.resetPasswordForEmail(email)
 
   if(error){
-    setAuthStatus(error.message)
+    setAuthStatus("Errore reset password: " + error.message)
     return
   }
 
@@ -120,22 +154,41 @@ async function resetPassword(){
 }
 
 async function logout(){
-  await sb.auth.signOut()
+  const { error } = await sb.auth.signOut()
+
+  if(error){
+    setAppStatus("Errore logout: " + error.message)
+    return
+  }
+
+  currentUser = null
+  presenze = []
+  editingId = null
   showLogin()
 }
 
 async function savePresenza(){
+  if(!currentUser){
+    setAppStatus("Utente non autenticato")
+    return
+  }
 
-  const nome = qs("nome").value
-  const data = qs("data").value
-  const stato = qs("stato").value
-  const ore = Number(qs("ore").value || 0)
-  const sede = qs("sede").value
-  const note = qs("note").value
+  const nome = qs("nome")?.value.trim() || ""
+  const data = qs("data")?.value || ""
+  const stato = qs("stato")?.value || ""
+  const ore = Number(qs("ore")?.value || 0)
+  const sede = qs("sede")?.value.trim() || ""
+  const note = qs("note")?.value.trim() || ""
+
+  if(!nome || !data || !stato){
+    setAppStatus("Compila almeno nome, data e stato")
+    return
+  }
+
+  let error = null
 
   if(editingId){
-
-    await sb
+    const result = await sb
       .from("presenze")
       .update({
         nome,
@@ -145,13 +198,12 @@ async function savePresenza(){
         sede,
         note
       })
-      .eq("id",editingId)
+      .eq("id", editingId)
 
+    error = result.error
     editingId = null
-
-  }else{
-
-    await sb
+  } else {
+    const result = await sb
       .from("presenze")
       .insert([{
         user_id: currentUser.id,
@@ -163,36 +215,56 @@ async function savePresenza(){
         sede,
         note
       }])
+
+    error = result.error
   }
 
-  loadPresenze()
+  if(error){
+    setAppStatus("Errore salvataggio: " + error.message)
+    return
+  }
+
+  clearForm()
+  await loadPresenze()
+  setAppStatus("Presenza salvata")
 }
 
 async function deletePresenza(id){
-
-  await sb
+  const { error } = await sb
     .from("presenze")
     .delete()
-    .eq("id",id)
+    .eq("id", id)
 
-  loadPresenze()
+  if(error){
+    setAppStatus("Errore eliminazione: " + error.message)
+    return
+  }
+
+  await loadPresenze()
+  setAppStatus("Presenza eliminata")
 }
 
 async function loadPresenze(){
-
-  const { data } = await sb
+  const { data, error } = await sb
     .from("presenze")
     .select("*")
-    .order("data",{ascending:false})
+    .order("data", { ascending: false })
+
+  if(error){
+    setAppStatus("Errore caricamento presenze: " + error.message)
+    presenze = []
+    renderTable([])
+    return
+  }
 
   presenze = data || []
-
   renderTable(presenze)
 }
 
 function renderTable(rows){
-
   const tabella = qs("tabella")
+  if(!tabella) return
+
   tabella.innerHTML = ""
 
   if(!rows.length){
@@ -200,19 +272,26 @@ function renderTable(rows){
     return
   }
 
-  rows.forEach(r=>{
+  rows.forEach(r => {
+    const safeNome = r.nome || ""
+    const safeData = formatDate(r.data || "")
+    const safeStato = r.stato || ""
+    const safeOre = r.ore ?? 0
+    const safeSede = r.sede || ""
+    const safeNote = r.note || ""
+    const safeId = String(r.id)
 
     tabella.innerHTML += `
       <tr>
-        <td data-label="Nome">${r.nome}</td>
-        <td data-label="Data">${formatDate(r.data)}</td>
-        <td data-label="Stato">${r.stato}</td>
-        <td data-label="Ore">${r.ore}</td>
-        <td data-label="Sede">${r.sede}</td>
-        <td data-label="Note">${r.note}</td>
+        <td data-label="Nome">${safeNome}</td>
+        <td data-label="Data">${safeData}</td>
+        <td data-label="Stato">${safeStato}</td>
+        <td data-label="Ore">${safeOre}</td>
+        <td data-label="Sede">${safeSede}</td>
+        <td data-label="Note">${safeNote}</td>
         <td data-label="Azioni">
-          <button class="btn-blue" onclick="editPresenza(${r.id})">Modifica</button>
-          <button class="btn-red" onclick="deletePresenza(${r.id})">Elimina</button>
+          <button class="btn-blue" onclick="editPresenza('${safeId}')">Modifica</button>
+          <button class="btn-red" onclick="deletePresenza('${safeId}')">Elimina</button>
         </td>
       </tr>
     `
@@ -220,40 +299,60 @@ function renderTable(rows){
 }
 
 function editPresenza(id){
-
-  const r = presenze.find(x=>x.id===id)
+  const r = presenze.find(x => String(x.id) === String(id))
+  if(!r) return
 
   editingId = id
 
-  qs("nome").value = r.nome
-  qs("data").value = r.data
-  qs("stato").value = r.stato
-  qs("ore").value = r.ore
-  qs("sede").value = r.sede
-  qs("note").value = r.note
+  if(qs("nome")) qs("nome").value = r.nome || ""
+  if(qs("data")) qs("data").value = r.data || ""
+  if(qs("stato")) qs("stato").value = r.stato || ""
+  if(qs("ore")) qs("ore").value = r.ore ?? 0
+  if(qs("sede")) qs("sede").value = r.sede || ""
+  if(qs("note")) qs("note").value = r.note || ""
+
+  setAppStatus("Modifica presenza in corso")
+}
+
+function clearForm(){
+  if(qs("nome")) qs("nome").value = ""
+  if(qs("data")) qs("data").value = todayISO()
+  if(qs("stato")) qs("stato").value = "Presente"
+  if(qs("ore")) qs("ore").value = "0"
+  if(qs("sede")) qs("sede").value = ""
+  if(qs("note")) qs("note").value = ""
 }
 
 function generateReport(){
-
   let text = "RIEPILOGO PRESENZE\n\n"
 
-  presenze.forEach(r=>{
+  presenze.forEach(r => {
     text += `${formatDate(r.data)} - ${r.nome} - ${r.stato} - Ore:${r.ore}\n`
   })
 
   lastReportText = text
 
-  qs("reportBox").textContent = text
+  const reportBox = qs("reportBox")
+  if(reportBox){
+    reportBox.textContent = text
+  }
 }
 
 async function copyReport(){
+  if(!lastReportText){
+    setAppStatus("Genera prima il report")
+    return
+  }
 
   await navigator.clipboard.writeText(lastReportText)
-
   setAppStatus("Report copiato")
 }
 
 function sendMailReport(){
+  if(!lastReportText){
+    setAppStatus("Genera prima il report")
+    return
+  }
 
   const subject = encodeURIComponent("Riepilogo presenze")
   const body = encodeURIComponent(lastReportText)
@@ -262,7 +361,6 @@ function sendMailReport(){
 }
 
 function exportCsv(){
-
   const rows = presenze
 
   if(!rows.length){
@@ -270,22 +368,24 @@ function exportCsv(){
     return
   }
 
-  const headers = ["Nome","Data","Stato","Ore","Sede","Note","Email"]
+  const headers = ["Nome", "Data", "Stato", "Ore", "Sede", "Note", "Email"]
   const csvRows = [headers.join(";")]
 
-  rows.forEach(r=>{
-    csvRows.push([
-      r.nome,
-      r.data,
-      r.stato,
-      r.ore,
-      r.sede,
-      r.note,
-      r.email
-    ].join(";"))
+  rows.forEach(r => {
+    const values = [
+      r.nome || "",
+      r.data || "",
+      r.stato || "",
+      String(r.ore ?? ""),
+      r.sede || "",
+      r.note || "",
+      r.email || ""
+    ].map(value => `"${String(value).replaceAll('"', '""')}"`)
+
+    csvRows.push(values.join(";"))
   })
 
-  const blob = new Blob([csvRows.join("\n")])
+  const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
 
   const a = document.createElement("a")
@@ -294,31 +394,41 @@ function exportCsv(){
   a.click()
 
   URL.revokeObjectURL(url)
+  setAppStatus("CSV esportato")
 }
 
 function bindEvents(){
+  if(qs("btnLogin")) qs("btnLogin").onclick = login
+  if(qs("btnRegister")) qs("btnRegister").onclick = registerUser
+  if(qs("btnResetPassword")) qs("btnResetPassword").onclick = resetPassword
+  if(qs("btnLogout")) qs("btnLogout").onclick = logout
 
-  qs("btnLogin").onclick = login
-  qs("btnRegister").onclick = registerUser
-  qs("btnResetPassword").onclick = resetPassword
-  qs("btnLogout").onclick = logout
+  if(qs("saveBtn")) qs("saveBtn").onclick = savePresenza
 
-  qs("saveBtn").onclick = savePresenza
-
-  qs("btnGenerateReport").onclick = generateReport
-  qs("btnCopyReport").onclick = copyReport
-  qs("btnSendReport").onclick = sendMailReport
-  qs("btnExportCsv").onclick = exportCsv
+  if(qs("btnGenerateReport")) qs("btnGenerateReport").onclick = generateReport
+  if(qs("btnCopyReport")) qs("btnCopyReport").onclick = copyReport
+  if(qs("btnSendReport")) qs("btnSendReport").onclick = sendMailReport
+  if(qs("btnExportCsv")) qs("btnExportCsv").onclick = exportCsv
 }
 
-window.addEventListener("DOMContentLoaded",()=>{
+window.addEventListener("DOMContentLoaded", async () => {
   bindEvents()
+
+  if(qs("data")) qs("data").value = todayISO()
+
+  const { data } = await sb.auth.getSession()
+
+  if(data?.session?.user){
+    await showApp(data.session.user)
+  } else {
+    showLogin()
+  }
 })
 
-sb.auth.onAuthStateChange((_event,session)=>{
+sb.auth.onAuthStateChange(async (_event, session) => {
   if(session?.user){
-    showApp(session.user)
-  }else{
+    await showApp(session.user)
+  } else {
     showLogin()
   }
 })
