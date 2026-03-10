@@ -248,16 +248,16 @@ td{
   gap:6px;
   justify-content:center;
   align-items:center;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
 }
 
 .table-buttons button{
   width:auto;
-  min-width:84px;
-  padding:7px 10px;
+  min-width:auto;
+  padding:6px 10px;
   border-radius:10px;
   font-size:12px;
-  line-height:1.1;
+  line-height:1;
   flex:0 0 auto;
 }
 
