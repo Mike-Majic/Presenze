@@ -164,6 +164,25 @@ function renderUsers(rows){
       }
     )
 
+    const btnResetPassword = buildActionButton("Reset pw", "btn-gray", async () => {
+      const ok = window.confirm(`Inviare la mail di reset password a ${user.email}?`)
+      if(!ok) return
+
+      try{
+        setStatus("Invio reset password in corso ..")
+        await apiFetch("/api/admin/reset-password", {
+          method: "POST",
+          body: {
+            email: user.email
+          }
+        })
+        setStatus("Mail reset password inviata")
+      }catch(err){
+        console.error(err)
+        setStatus("Errore reset password: " + err.message)
+      }
+    })
+
     const btnDelete = buildActionButton("Espelli", "btn-red", async () => {
       const ok = window.confirm(`Vuoi davvero espellere ${user.email}?`)
       if(!ok) return
@@ -184,12 +203,13 @@ function renderUsers(rows){
       }
     })
 
-const buttonsWrap = document.createElement("div")
-buttonsWrap.className = "table-buttons"
+    const buttonsWrap = document.createElement("div")
+    buttonsWrap.className = "table-buttons"
 
-buttonsWrap.appendChild(btnSaveNote)
-buttonsWrap.appendChild(btnToggleBlock)
-buttonsWrap.appendChild(btnDelete)
+    buttonsWrap.appendChild(btnSaveNote)
+    buttonsWrap.appendChild(btnResetPassword)
+    buttonsWrap.appendChild(btnToggleBlock)
+    buttonsWrap.appendChild(btnDelete)
 
 tdActions.appendChild(buttonsWrap)
 
