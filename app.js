@@ -273,6 +273,13 @@ async function registerUser(){
     const { data, error } = result
 
     if(error){
+      const msg = (error.message || "").toLowerCase()
+
+      if(msg.includes("email rate limit exceeded") || msg.includes("rate limit")){
+        setAuthStatus("Hai fatto troppe richieste in poco tempo .. aspetta un attimo e riprova.")
+        return
+      }
+
       setAuthStatus("Errore registrazione: " + error.message)
       return
     }
