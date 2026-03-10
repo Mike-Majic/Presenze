@@ -509,3 +509,59 @@ td:last-child .btn-gray{
     font-size:13px;
   }
 }
+
+button:disabled{
+  opacity:.7;
+  cursor:not-allowed;
+  transform:none;
+  filter:none;
+}
+
+.password-wrap{
+  position:relative;
+}
+
+.password-wrap input{
+  padding-right:54px;
+}
+
+.password-toggle{
+  position:absolute;
+  top:50%;
+  right:8px;
+  transform:translateY(-50%);
+  width:40px;
+  min-width:40px;
+  height:40px;
+  border-radius:10px;
+  padding:0;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.password-toggle:hover{
+  transform:translateY(-50%);
+}
+
+.overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(2,6,23,.68);
+  backdrop-filter:blur(4px);
+  z-index:30;
+}
+
+.modal{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  z-index:40;
+}
+
+.modal-card{
+  width:min(100%, 560px);
+  margin:0;
+}
