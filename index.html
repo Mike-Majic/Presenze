@@ -37,16 +37,20 @@
 
         <div>
           <label>Password</label>
-          <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+          <div class="password-wrap">
+            <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+            <button type="button" class="password-toggle" id="btnTogglePassword" aria-label="Mostra o nascondi password">👁</button>
+          </div>
         </div>
       </div>
 
       <div class="actions">
+        <button type="button" class="btn-gray" id="btnHelp">AIUTO</button>
         <button type="button" class="btn-green" id="btnLogin">Login</button>
         <button type="button" class="btn-orange" id="btnRegisterMode">Compila registrazione</button>
         <button type="button" class="btn-orange hidden" id="btnRegister">Conferma registrazione</button>
         <button type="button" class="btn-gray hidden" id="btnCancelRegister">Annulla registrazione</button>
-        <button type="button" class="btn-blue" id="btnResetPassword">Reset password</button>
+        <button type="button" class="btn-blue" id="btnRequestReset">Richiedi reset password</button>
       </div>
 
       <div id="authStatus" class="status"></div>
@@ -229,6 +233,55 @@
       </div>
 
     </div>
+
+    <div id="overlay" class="overlay hidden"></div>
+
+    <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="card modal-card">
+        <h3 id="helpModalTitle">Richiesta aiuto</h3>
+        <div class="grid">
+          <div>
+            <label>Nome e cognome</label>
+            <input id="helpNome" type="text" placeholder="Nome e cognome">
+          </div>
+          <div>
+            <label>Mail</label>
+            <input id="helpEmail" type="email" placeholder="nome@email.it" inputmode="email">
+          </div>
+          <div>
+            <label>Note</label>
+            <textarea id="helpNote" placeholder="Scrivi qui il problema o la richiesta"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-green" id="btnSendHelp">Invia richiesta</button>
+          <button type="button" class="btn-gray" id="btnCloseHelp">Chiudi</button>
+        </div>
+        <div id="helpStatus" class="status"></div>
+      </div>
+    </div>
+
+    <div id="resetRequestModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resetRequestTitle">
+      <div class="card modal-card">
+        <h3 id="resetRequestTitle">Richiedi reset password</h3>
+        <div class="grid">
+          <div>
+            <label>Mail account</label>
+            <input id="resetRequestEmail" type="email" placeholder="nome@email.it" inputmode="email">
+          </div>
+          <div>
+            <label>Note</label>
+            <textarea id="resetRequestNote" placeholder="Aggiungi una nota per l'amministratore"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-blue" id="btnSendResetRequest">Invia richiesta</button>
+          <button type="button" class="btn-gray" id="btnCloseResetRequest">Chiudi</button>
+        </div>
+        <div id="resetRequestStatus" class="status"></div>
+      </div>
+    </div>
+
   </div>
 
   <script src="app.js"></script>
