@@ -2,7 +2,6 @@ const SUPABASE_URL = "https://nzmgjuwmrvjxpykzawkp.supabase.co"
 const SUPABASE_KEY = "sb_publishable_lwd5Lahd5CirK_RlQmhcBA_PTo6c14v"
 
 const ADMIN_EMAIL = "m.colurci@gmail.com"
-const BOSS_EMAIL = "m.colurci@gmail.com"
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -11,7 +10,7 @@ let currentProfile = null
 let isAdmin = false
 let presenze = []
 let editingId = null
-let lastReportText = ""
+let isRegisterMode = false
 
 function qs(id){
   return document.getElementById(id)
@@ -55,12 +54,32 @@ function getDisplayName(profile, fallbackEmail = ""){
   return full || fallbackEmail || "-"
 }
 
+function showRegisterMode(){
+  isRegisterMode = true
+  if(qs("registerFields")) qs("registerFields").classList.remove("hidden")
+  if(qs("btnRegister")) qs("btnRegister").classList.remove("hidden")
+  if(qs("btnCancelRegister")) qs("btnCancelRegister").classList.remove("hidden")
+  if(qs("btnRegisterMode")) qs("btnRegisterMode").classList.add("hidden")
+  setAuthStatus("Compila nome, cognome, email e password per registrarti")
+}
+
+function hideRegisterMode(){
+  isRegisterMode = false
+  if(qs("registerFields")) qs("registerFields").classList.add("hidden")
+  if(qs("btnRegister")) qs("btnRegister").classList.add("hidden")
+  if(qs("btnCancelRegister")) qs("btnCancelRegister").classList.add("hidden")
+  if(qs("btnRegisterMode")) qs("btnRegisterMode").classList.remove("hidden")
+  setAuthStatus("")
+}
+
 function showLogin(){
   const loginBox = qs("loginBox")
   const app = qs("app")
 
   if(loginBox) loginBox.classList.remove("hidden")
   if(app) app.classList.add("hidden")
+
+  hideRegisterMode()
 }
 
 async function loadMyProfile(user){
@@ -102,6 +121,27 @@ async function createOrUpdateMyProfile(user, nome, cognome){
   return data
 }
 
+async function ensureProfileFromMetadata(user){
+  if(!user?.id) return null
+
+  let profile = await loadMyProfile(user)
+  if(profile) return profile
+
+  const nome = user.user_metadata?.nome || ""
+  const cognome = user.user_metadata?.cognome || ""
+
+  if(nome || cognome){
+    try{
+      profile = await createOrUpdateMyProfile(user, nome, cognome)
+      return profile
+    }catch(err){
+      console.error("ENSURE PROFILE FROM METADATA ERROR", err)
+    }
+  }
+
+  return null
+}
+
 async function checkBlockedStatus(user){
   if(!user?.id) return false
   if((user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()) return false
@@ -135,7 +175,7 @@ async function showApp(user){
     return
   }
 
-  currentProfile = await loadMyProfile(user)
+  currentProfile = await ensureProfileFromMetadata(user)
 
   const loginBox = qs("loginBox")
   const app = qs("app")
@@ -165,17 +205,10 @@ async function showApp(user){
     btnManageUsers.classList.toggle("hidden", !isAdmin)
   }
 
-  if(qs("data")) qs("data").value = todayISO()
+  clearForm()
+
   if(qs("filterMonth") && !qs("filterMonth").value){
     qs("filterMonth").value = currentMonthValue()
-  }
-
-  if(qs("nome")){
-    qs("nome").value = getDisplayName(currentProfile, "")
-  }
-
-  if(qs("sede") && !qs("sede").value){
-    qs("sede").value = "Sielte Pomezia"
   }
 
   await loadPresenze()
@@ -228,10 +261,14 @@ async function registerUser(){
 
     const result = await sb.auth.signUp({
       email,
-      password
+      password,
+      options: {
+        data: {
+          nome,
+          cognome
+        }
+      }
     })
-
-    console.log("REGISTER RESULT", result)
 
     const { data, error } = result
 
@@ -250,10 +287,12 @@ async function registerUser(){
 
     if(data?.user && !data?.session){
       setAuthStatus("Utente creato .. controlla la mail per confermare l'account")
+      hideRegisterMode()
       return
     }
 
     setAuthStatus("Utente creato con successo")
+    hideRegisterMode()
   }catch(err){
     console.error("REGISTER ERROR", err)
     setAuthStatus("Errore registrazione")
@@ -265,18 +304,20 @@ async function resetPassword(){
     const email = qs("email")?.value.trim() || ""
 
     if(!email){
-      setAuthStatus("Inserisci l'email")
+      setAuthStatus("Inserisci l'email dell'account")
       return
     }
 
-    const { error } = await sb.auth.resetPasswordForEmail(email)
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    })
 
     if(error){
       setAuthStatus("Errore reset password: " + error.message)
       return
     }
 
-    setAuthStatus("Email reset inviata")
+    setAuthStatus("Email reset inviata .. controlla la posta")
   }catch(err){
     console.error("RESET PASSWORD ERROR", err)
     setAuthStatus("Errore reset password")
@@ -285,8 +326,6 @@ async function resetPassword(){
 
 async function logout(){
   try{
-    setAppStatus("Logout in corso ..")
-
     const { error } = await sb.auth.signOut({ scope: "local" })
 
     if(error){
@@ -299,18 +338,14 @@ async function logout(){
     isAdmin = false
     presenze = []
     editingId = null
-    lastReportText = ""
 
     renderTable([])
     clearForm()
     showLogin()
     setAuthStatus("Logout effettuato")
-    setAppStatus("")
-
-    window.location.replace("/")
   }catch(err){
     console.error("LOGOUT ERROR", err)
-    setAppStatus("Errore logout: " + (err.message || "errore sconosciuto"))
+    setAppStatus("Errore logout")
   }
 }
 
@@ -320,8 +355,6 @@ async function savePresenza(){
       setAppStatus("Utente non autenticato")
       return
     }
-
-    setAppStatus("Salvataggio in corso ..")
 
     const nome = qs("nome")?.value.trim() || getDisplayName(currentProfile, "")
     const data = qs("data")?.value || ""
@@ -366,8 +399,6 @@ async function savePresenza(){
         .select()
     }
 
-    console.log("SAVE RESULT", result)
-
     if(result.error){
       setAppStatus("Errore salvataggio: " + result.error.message)
       return
@@ -379,7 +410,7 @@ async function savePresenza(){
     setAppStatus("Presenza salvata")
   }catch(err){
     console.error("SAVE ERROR", err)
-    setAppStatus("Errore salvataggio: " + (err.message || "errore sconosciuto"))
+    setAppStatus("Errore salvataggio")
   }
 }
 
@@ -409,8 +440,6 @@ async function loadPresenze(){
       .from("presenze")
       .select("*")
       .order("data", { ascending: false })
-
-    console.log("LOAD RESULT", { data, error })
 
     if(error){
       presenze = []
@@ -511,8 +540,6 @@ function editPresenza(id){
 
   if(qs("formTitle")) qs("formTitle").textContent = "Modifica presenza"
   if(qs("cancelEditBtn")) qs("cancelEditBtn").classList.remove("hidden")
-
-  setAppStatus("Modifica presenza in corso")
 }
 
 function cancelEdit(){
@@ -520,7 +547,6 @@ function cancelEdit(){
   clearForm()
   if(qs("formTitle")) qs("formTitle").textContent = "Inserisci presenza"
   if(qs("cancelEditBtn")) qs("cancelEditBtn").classList.add("hidden")
-  setAppStatus("Modifica annullata")
 }
 
 function clearForm(){
@@ -624,7 +650,9 @@ function goManageUsers(){
 
 function bindEvents(){
   if(qs("btnLogin")) qs("btnLogin").onclick = login
+  if(qs("btnRegisterMode")) qs("btnRegisterMode").onclick = showRegisterMode
   if(qs("btnRegister")) qs("btnRegister").onclick = registerUser
+  if(qs("btnCancelRegister")) qs("btnCancelRegister").onclick = hideRegisterMode
   if(qs("btnResetPassword")) qs("btnResetPassword").onclick = resetPassword
   if(qs("btnLogout")) qs("btnLogout").onclick = logout
   if(qs("btnManageUsers")) qs("btnManageUsers").onclick = goManageUsers
@@ -643,25 +671,24 @@ function bindEvents(){
 
 window.addEventListener("DOMContentLoaded", async () => {
   bindEvents()
+  clearForm()
 
-  if(qs("data")) qs("data").value = todayISO()
   if(qs("filterMonth")) qs("filterMonth").value = currentMonthValue()
-  if(qs("sede")) qs("sede").value = "Sielte Pomezia"
 
   const { data, error } = await sb.auth.getSession()
-
-  console.log("SESSION CHECK", { data, error })
 
   if(data?.session?.user){
     await showApp(data.session.user)
   } else {
     showLogin()
   }
+
+  if(error){
+    console.error("SESSION CHECK ERROR", error)
+  }
 })
 
 sb.auth.onAuthStateChange(async (_event, session) => {
-  console.log("AUTH CHANGE", _event, session)
-
   if(session?.user){
     await showApp(session.user)
   } else {
