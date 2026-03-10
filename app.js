@@ -2,7 +2,6 @@ const SUPABASE_URL = "https://nzmgjuwmrvjxpykzawkp.supabase.co"
 const SUPABASE_KEY = "sb_publishable_lwd5Lahd5CirK_RlQmhcBA_PTo6c14v"
 
 const ADMIN_EMAIL = "m.colurci@gmail.com"
-const BOSS_EMAIL = "m.colurci@gmail.com"
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -32,13 +31,6 @@ function todayISO(){
   const m = String(d.getMonth() + 1).padStart(2, "0")
   const day = String(d.getDate()).padStart(2, "0")
   return `${y}-${m}-${day}`
-}
-
-function currentMonthValue(){
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, "0")
-  return `${y}-${m}`
 }
 
 function formatDate(dateString){
@@ -185,10 +177,10 @@ async function savePresenza(){
     return
   }
 
-  let error = null
+  let result
 
   if(editingId){
-    const result = await sb
+    result = await sb
       .from("presenze")
       .update({
         nome,
@@ -200,10 +192,9 @@ async function savePresenza(){
       })
       .eq("id", editingId)
 
-    error = result.error
     editingId = null
   } else {
-    const result = await sb
+    result = await sb
       .from("presenze")
       .insert([{
         user_id: currentUser.id,
@@ -215,12 +206,10 @@ async function savePresenza(){
         sede,
         note
       }])
-
-    error = result.error
   }
 
-  if(error){
-    setAppStatus("Errore salvataggio: " + error.message)
+  if(result.error){
+    setAppStatus("Errore salvataggio: " + result.error.message)
     return
   }
 
@@ -251,9 +240,9 @@ async function loadPresenze(){
     .order("data", { ascending: false })
 
   if(error){
-    setAppStatus("Errore caricamento presenze: " + error.message)
     presenze = []
     renderTable([])
+    setAppStatus("Errore caricamento presenze: " + error.message)
     return
   }
 
@@ -273,25 +262,19 @@ function renderTable(rows){
   }
 
   rows.forEach(r => {
-    const safeNome = r.nome || ""
-    const safeData = formatDate(r.data || "")
-    const safeStato = r.stato || ""
-    const safeOre = r.ore ?? 0
-    const safeSede = r.sede || ""
-    const safeNote = r.note || ""
     const safeId = String(r.id)
 
     tabella.innerHTML += `
       <tr>
-        <td data-label="Nome">${safeNome}</td>
-        <td data-label="Data">${safeData}</td>
-        <td data-label="Stato">${safeStato}</td>
-        <td data-label="Ore">${safeOre}</td>
-        <td data-label="Sede">${safeSede}</td>
-        <td data-label="Note">${safeNote}</td>
+        <td data-label="Nome">${r.nome || ""}</td>
+        <td data-label="Data">${formatDate(r.data || "")}</td>
+        <td data-label="Stato">${r.stato || ""}</td>
+        <td data-label="Ore">${r.ore ?? 0}</td>
+        <td data-label="Sede">${r.sede || ""}</td>
+        <td data-label="Note">${r.note || ""}</td>
         <td data-label="Azioni">
-          <button class="btn-blue" onclick="editPresenza('${safeId}')">Modifica</button>
-          <button class="btn-red" onclick="deletePresenza('${safeId}')">Elimina</button>
+          <button type="button" class="btn-blue" onclick="editPresenza('${safeId}')">Modifica</button>
+          <button type="button" class="btn-red" onclick="deletePresenza('${safeId}')">Elimina</button>
         </td>
       </tr>
     `
@@ -333,9 +316,7 @@ function generateReport(){
   lastReportText = text
 
   const reportBox = qs("reportBox")
-  if(reportBox){
-    reportBox.textContent = text
-  }
+  if(reportBox) reportBox.textContent = text
 }
 
 async function copyReport(){
@@ -368,7 +349,7 @@ function exportCsv(){
     return
   }
 
-  const headers = ["Nome", "Data", "Stato", "Ore", "Sede", "Note", "Email"]
+  const headers = ["Nome","Data","Stato","Ore","Sede","Note","Email"]
   const csvRows = [headers.join(";")]
 
   rows.forEach(r => {
@@ -402,9 +383,7 @@ function bindEvents(){
   if(qs("btnRegister")) qs("btnRegister").onclick = registerUser
   if(qs("btnResetPassword")) qs("btnResetPassword").onclick = resetPassword
   if(qs("btnLogout")) qs("btnLogout").onclick = logout
-
   if(qs("saveBtn")) qs("saveBtn").onclick = savePresenza
-
   if(qs("btnGenerateReport")) qs("btnGenerateReport").onclick = generateReport
   if(qs("btnCopyReport")) qs("btnCopyReport").onclick = copyReport
   if(qs("btnSendReport")) qs("btnSendReport").onclick = sendMailReport
