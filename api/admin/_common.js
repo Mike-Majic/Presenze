@@ -1,6 +1,6 @@
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "m.colurci@gmail.com"
+const ADMIN_EMAIL = (process.env.ADMIN_NOTIFY_EMAIL || "m.colurci@gmail.com").toLowerCase()
 
 function sendJson(res, status, payload){
   res.statusCode = status
@@ -8,20 +8,18 @@ function sendJson(res, status, payload){
   res.end(JSON.stringify(payload))
 }
 
-async function readBody(req){
-  if(req.method === "GET") return {}
-
-  return await new Promise((resolve, reject) => {
-    let data = ""
+function readBody(req){
+  return new Promise((resolve, reject) => {
+    let raw = ""
 
     req.on("data", chunk => {
-      data += chunk
+      raw += chunk
     })
 
     req.on("end", () => {
-      if(!data) return resolve({})
+      if(!raw) return resolve({})
       try{
-        resolve(JSON.parse(data))
+        resolve(JSON.parse(raw))
       }catch(err){
         reject(err)
       }
@@ -32,27 +30,18 @@ async function readBody(req){
 }
 
 async function supabaseFetch(path, options = {}){
-  const url = `${SUPABASE_URL}${path}`
-
-  const response = await fetch(url, {
+  const response = await fetch(`${SUPABASE_URL}${path}`, {
     method: options.method || "GET",
     headers: {
+      "Content-Type": "application/json",
       "apikey": SUPABASE_SERVICE_ROLE_KEY,
       "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json",
       ...(options.headers || {})
     },
     body: options.body ? JSON.stringify(options.body) : undefined
   })
 
-  const text = await response.text()
-  let data = {}
-
-  try{
-    data = text ? JSON.parse(text) : {}
-  }catch{
-    data = { raw: text }
-  }
+  const data = await response.json().catch(() => ({}))
 
   return {
     ok: response.ok,
@@ -61,28 +50,7 @@ async function supabaseFetch(path, options = {}){
   }
 }
 
-async function getCurrentUserFromToken(accessToken){
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    method: "GET",
-    headers: {
-      "apikey": SUPABASE_SERVICE_ROLE_KEY,
-      "Authorization": `Bearer ${accessToken}`
-    }
-  })
-
-  if(!response.ok){
-    return null
-  }
-
-  return await response.json()
-}
-
 async function requireAdmin(req, res){
-  if(!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY){
-    sendJson(res, 500, { error: "Variabili server mancanti" })
-    return null
-  }
-
   const authHeader = req.headers.authorization || ""
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : ""
 
@@ -91,15 +59,21 @@ async function requireAdmin(req, res){
     return null
   }
 
-  const user = await getCurrentUserFromToken(token)
+  const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      "apikey": SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": `Bearer ${token}`
+    }
+  })
 
-  if(!user){
+  const user = await userResponse.json().catch(() => null)
+
+  if(!userResponse.ok || !user){
     sendJson(res, 401, { error: "Sessione non valida" })
     return null
   }
 
-  const email = (user.email || "").toLowerCase()
-  if(email !== ADMIN_EMAIL.toLowerCase()){
+  if((user.email || "").toLowerCase() !== ADMIN_EMAIL){
     sendJson(res, 403, { error: "Non autorizzato" })
     return null
   }
