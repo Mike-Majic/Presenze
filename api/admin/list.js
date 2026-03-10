@@ -19,18 +19,28 @@ module.exports = async (req, res) => {
       return sendJson(res, metaResponse.status, { error: "Errore recupero meta utenti", details: metaResponse.data })
     }
 
+    const profileResponse = await supabaseFetch("/rest/v1/user_profiles?select=user_id,email,nome,cognome,created_at")
+    if(!profileResponse.ok){
+      return sendJson(res, profileResponse.status, { error: "Errore recupero profili utenti", details: profileResponse.data })
+    }
+
     const authUsers = authUsersResponse.data.users || []
     const metas = Array.isArray(metaResponse.data) ? metaResponse.data : []
+    const profiles = Array.isArray(profileResponse.data) ? profileResponse.data : []
 
     const metaMap = new Map(metas.map(row => [row.user_id, row]))
+    const profileMap = new Map(profiles.map(row => [row.user_id, row]))
 
     const users = authUsers.map(user => {
       const meta = metaMap.get(user.id) || null
+      const profile = profileMap.get(user.id) || null
 
       return {
         id: user.id,
         email: user.email || "",
-        created_at: user.created_at || meta?.created_at || null,
+        nome: profile?.nome || "",
+        cognome: profile?.cognome || "",
+        created_at: user.created_at || meta?.created_at || profile?.created_at || null,
         last_sign_in_at: user.last_sign_in_at || null,
         is_blocked: !!meta?.is_blocked,
         note_admin: meta?.note_admin || ""
