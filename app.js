@@ -224,12 +224,28 @@ async function login(){
       return
     }
 
+    setAuthStatus("Accesso in corso ..")
+
     const { data, error } = await sb.auth.signInWithPassword({
       email,
       password
     })
 
+    console.log("LOGIN RESULT", { data, error })
+
     if(error){
+      const msg = (error.message || "").toLowerCase()
+
+      if(msg.includes("invalid login credentials")){
+        setAuthStatus("Email o password non corrette")
+        return
+      }
+
+      if(msg.includes("email not confirmed")){
+        setAuthStatus("Devi prima confermare la mail dell'account")
+        return
+      }
+
       setAuthStatus("Errore login: " + error.message)
       return
     }
