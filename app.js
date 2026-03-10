@@ -925,20 +925,69 @@ function updateSummary(rows){
   const presenti = rows.filter(r => r.stato === "Presente").length
   const ferie = rows.filter(r => r.stato === "Ferie").length
   const permessi = rows.filter(r => r.stato === "Permesso").length
-  const malattia = rows.filter(r => r.stato === "Malattia").length
-  const lutto = rows.filter(r => r.stato === "Lutto").length
-  const maternita = rows.filter(r => r.stato === "Maternità").length
-  const legge104 = rows.filter(r => r.stato === "104").length
+
+  const assenti = rows.filter(r =>
+    r.stato !== "Presente"
+  ).length
 
   if(qs("sumRecord")) qs("sumRecord").textContent = String(totalRecords)
   if(qs("sumOre")) qs("sumOre").textContent = String(totalOre)
   if(qs("sumPresenti")) qs("sumPresenti").textContent = String(presenti)
+  if(qs("sumAssenti")) qs("sumAssenti").textContent = String(assenti)
   if(qs("sumFerie")) qs("sumFerie").textContent = String(ferie)
   if(qs("sumPermessi")) qs("sumPermessi").textContent = String(permessi)
-  if(qs("sumMalattia")) qs("sumMalattia").textContent = String(malattia)
-  if(qs("sumLutto")) qs("sumLutto").textContent = String(lutto)
-  if(qs("sumMaternita")) qs("sumMaternita").textContent = String(maternita)
-  if(qs("sum104")) qs("sum104").textContent = String(legge104)
+}
+
+function buildReportText(){
+  const rows = getFilteredPresenze()
+
+  const totale = rows.length
+  const ore = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
+  const presenti = rows.filter(r => r.stato === "Presente").length
+  const assenti = rows.filter(r => r.stato !== "Presente").length
+  const ferie = rows.filter(r => r.stato === "Ferie").length
+  const permessi = rows.filter(r => r.stato === "Permesso").length
+
+  const mese = qs("filterMonth")?.value || "tutte"
+  const dipendente = qs("filterEmployee")?.value || "Tutti"
+
+  return [
+    `Report presenze`,
+    `Mese: ${mese}`,
+    `Dipendente: ${dipendente}`,
+    ``,
+    `Totale record: ${totale}`,
+    `Totale ore: ${ore}`,
+    `Presenti: ${presenti}`,
+    `Assenti: ${assenti}`,
+    `Ferie: ${ferie}`,
+    `Permessi: ${permessi}`
+  ].join("\n")
+}
+
+function generateReport(){
+  const text = buildReportText()
+  if(qs("reportBox")) qs("reportBox").textContent = text
+  setAppStatus("Report generato")
+}
+
+async function copyReport(){
+  try{
+    const text = buildReportText()
+    await navigator.clipboard.writeText(text)
+    if(qs("reportBox")) qs("reportBox").textContent = text
+    setAppStatus("Report copiato")
+  }catch(err){
+    console.error("COPY REPORT ERROR", err)
+    setAppStatus("Errore copia report")
+  }
+}
+
+function sendToBoss(){
+  const text = buildReportText()
+  const subject = encodeURIComponent("Report presenze")
+  const body = encodeURIComponent(text)
+  window.location.href = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`
 }
 
 function updateSupportSummary(){
@@ -1071,9 +1120,11 @@ function bindEvents(){
   if(qs("saveBtn")) qs("saveBtn").onclick = savePresenza
   if(qs("cancelEditBtn")) qs("cancelEditBtn").onclick = cancelEdit
 
-  if(qs("btnExportCsv")) qs("btnExportCsv").onclick = exportCsv
-  if(qs("btnResetFilters")) qs("btnResetFilters").onclick = resetFilters
-  if(qs("btnRefreshSupport")) qs("btnRefreshSupport").onclick = loadSupportRequests
+if(qs("btnResetFilters")) qs("btnResetFilters").onclick = resetFilters
+if(qs("btnGenerateReport")) qs("btnGenerateReport").onclick = generateReport
+if(qs("btnCopyReport")) qs("btnCopyReport").onclick = copyReport
+if(qs("btnSendToBoss")) qs("btnSendToBoss").onclick = sendToBoss
+if(qs("btnRefreshSupport")) qs("btnRefreshSupport").onclick = loadSupportRequests
 
   if(qs("filterMonth")) qs("filterMonth").onchange = applyFilters
   if(qs("filterState")) qs("filterState").onchange = applyFilters
