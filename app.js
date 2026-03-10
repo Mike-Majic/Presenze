@@ -7,6 +7,7 @@ const BOSS_EMAIL = "m.colurci@gmail.com"
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 let currentUser = null
+let currentProfile = null
 let isAdmin = false
 let presenze = []
 let editingId = null
@@ -47,12 +48,58 @@ function formatDate(dateString){
   return `${d}/${m}/${y}`
 }
 
+function getDisplayName(profile, fallbackEmail = ""){
+  const nome = (profile?.nome || "").trim()
+  const cognome = (profile?.cognome || "").trim()
+  const full = `${nome} ${cognome}`.trim()
+  return full || fallbackEmail || "-"
+}
+
 function showLogin(){
   const loginBox = qs("loginBox")
   const app = qs("app")
 
   if(loginBox) loginBox.classList.remove("hidden")
   if(app) app.classList.add("hidden")
+}
+
+async function loadMyProfile(user){
+  if(!user?.id) return null
+
+  const { data, error } = await sb
+    .from("user_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if(error){
+    console.error("LOAD PROFILE ERROR", error)
+    return null
+  }
+
+  return data || null
+}
+
+async function createOrUpdateMyProfile(user, nome, cognome){
+  const payload = {
+    user_id: user.id,
+    email: user.email,
+    nome: (nome || "").trim(),
+    cognome: (cognome || "").trim()
+  }
+
+  const { data, error } = await sb
+    .from("user_profiles")
+    .upsert(payload, { onConflict: "user_id" })
+    .select()
+    .single()
+
+  if(error){
+    console.error("UPSERT PROFILE ERROR", error)
+    throw error
+  }
+
+  return data
 }
 
 async function checkBlockedStatus(user){
@@ -81,11 +128,14 @@ async function showApp(user){
   if(blocked){
     await sb.auth.signOut()
     currentUser = null
+    currentProfile = null
     isAdmin = false
     showLogin()
     setAuthStatus("Il tuo account è stato bloccato dall'amministratore")
     return
   }
+
+  currentProfile = await loadMyProfile(user)
 
   const loginBox = qs("loginBox")
   const app = qs("app")
@@ -98,7 +148,7 @@ async function showApp(user){
   if(app) app.classList.remove("hidden")
 
   if(userInfo){
-    userInfo.textContent = `Utente: ${user.email || ""}`
+    userInfo.textContent = `Dipendente: ${getDisplayName(currentProfile, user.email || "")}`
   }
 
   if(roleInfo){
@@ -118,6 +168,14 @@ async function showApp(user){
   if(qs("data")) qs("data").value = todayISO()
   if(qs("filterMonth") && !qs("filterMonth").value){
     qs("filterMonth").value = currentMonthValue()
+  }
+
+  if(qs("nome")){
+    qs("nome").value = getDisplayName(currentProfile, "")
+  }
+
+  if(qs("sede") && !qs("sede").value){
+    qs("sede").value = "Sielte Pomezia"
   }
 
   await loadPresenze()
@@ -153,11 +211,13 @@ async function login(){
 
 async function registerUser(){
   try{
+    const nome = qs("nomeRegister")?.value.trim() || ""
+    const cognome = qs("cognomeRegister")?.value.trim() || ""
     const email = qs("email")?.value.trim() || ""
     const password = qs("password")?.value.trim() || ""
 
-    if(!email || !password){
-      setAuthStatus("Inserisci email e password")
+    if(!nome || !cognome || !email || !password){
+      setAuthStatus("Compila nome, cognome, email e password")
       return
     }
 
@@ -178,6 +238,14 @@ async function registerUser(){
     if(error){
       setAuthStatus("Errore registrazione: " + error.message)
       return
+    }
+
+    if(data?.user){
+      try{
+        await createOrUpdateMyProfile(data.user, nome, cognome)
+      }catch(profileError){
+        console.error("PROFILE CREATE ERROR", profileError)
+      }
     }
 
     if(data?.user && !data?.session){
@@ -227,6 +295,7 @@ async function logout(){
     }
 
     currentUser = null
+    currentProfile = null
     isAdmin = false
     presenze = []
     editingId = null
@@ -254,11 +323,11 @@ async function savePresenza(){
 
     setAppStatus("Salvataggio in corso ..")
 
-    const nome = qs("nome")?.value.trim() || ""
+    const nome = qs("nome")?.value.trim() || getDisplayName(currentProfile, "")
     const data = qs("data")?.value || ""
     const stato = qs("stato")?.value || ""
     const ore = Number(qs("ore")?.value || 0)
-    const sede = qs("sede")?.value.trim() || ""
+    const sede = qs("sede")?.value || "Sielte Pomezia"
     const note = qs("note")?.value.trim() || ""
 
     if(!nome || !data || !stato){
@@ -417,8 +486,10 @@ function renderTable(rows){
         <td data-label="Sede">${r.sede || ""}</td>
         <td data-label="Note">${r.note || ""}</td>
         <td data-label="Azioni">
-          <button type="button" class="btn-blue" onclick="editPresenza('${safeId}')">Modifica</button>
-          <button type="button" class="btn-red" onclick="deletePresenza('${safeId}')">Elimina</button>
+          <div class="table-buttons">
+            <button type="button" class="btn-blue" onclick="editPresenza('${safeId}')">Modifica</button>
+            <button type="button" class="btn-red" onclick="deletePresenza('${safeId}')">Elimina</button>
+          </div>
         </td>
       </tr>
     `
@@ -433,9 +504,9 @@ function editPresenza(id){
 
   if(qs("nome")) qs("nome").value = r.nome || ""
   if(qs("data")) qs("data").value = r.data || ""
-  if(qs("stato")) qs("stato").value = r.stato || ""
+  if(qs("stato")) qs("stato").value = r.stato || "Presente"
   if(qs("ore")) qs("ore").value = r.ore ?? 0
-  if(qs("sede")) qs("sede").value = r.sede || ""
+  if(qs("sede")) qs("sede").value = r.sede || "Sielte Pomezia"
   if(qs("note")) qs("note").value = r.note || ""
 
   if(qs("formTitle")) qs("formTitle").textContent = "Modifica presenza"
@@ -453,11 +524,11 @@ function cancelEdit(){
 }
 
 function clearForm(){
-  if(qs("nome")) qs("nome").value = ""
+  if(qs("nome")) qs("nome").value = getDisplayName(currentProfile, "")
   if(qs("data")) qs("data").value = todayISO()
   if(qs("stato")) qs("stato").value = "Presente"
   if(qs("ore")) qs("ore").value = "0"
-  if(qs("sede")) qs("sede").value = ""
+  if(qs("sede")) qs("sede").value = "Sielte Pomezia"
   if(qs("note")) qs("note").value = ""
 }
 
@@ -492,58 +563,22 @@ function updateSummary(rows){
   const totalRecords = rows.length
   const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
   const presenti = rows.filter(r => r.stato === "Presente").length
-  const assenti = rows.filter(r => r.stato === "Assente").length
   const ferie = rows.filter(r => r.stato === "Ferie").length
   const permessi = rows.filter(r => r.stato === "Permesso").length
+  const malattia = rows.filter(r => r.stato === "Malattia").length
+  const lutto = rows.filter(r => r.stato === "Lutto").length
+  const maternita = rows.filter(r => r.stato === "Maternità").length
+  const legge104 = rows.filter(r => r.stato === "104").length
 
   if(qs("sumRecord")) qs("sumRecord").textContent = String(totalRecords)
   if(qs("sumOre")) qs("sumOre").textContent = String(totalOre)
   if(qs("sumPresenti")) qs("sumPresenti").textContent = String(presenti)
-  if(qs("sumAssenti")) qs("sumAssenti").textContent = String(assenti)
   if(qs("sumFerie")) qs("sumFerie").textContent = String(ferie)
   if(qs("sumPermessi")) qs("sumPermessi").textContent = String(permessi)
-}
-
-function generateReport(){
-  const rows = getFilteredPresenze()
-  let text = "RIEPILOGO PRESENZE\n\n"
-
-  if(!rows.length){
-    text += "Nessun dato disponibile"
-  } else {
-    rows.forEach(r => {
-      text += `${formatDate(r.data)} - ${r.nome} - ${r.stato} - Ore:${r.ore}\n`
-    })
-  }
-
-  lastReportText = text
-
-  const reportBox = qs("reportBox")
-  if(reportBox) reportBox.textContent = text
-
-  setAppStatus("Report generato")
-}
-
-async function copyReport(){
-  if(!lastReportText){
-    setAppStatus("Genera prima il report")
-    return
-  }
-
-  await navigator.clipboard.writeText(lastReportText)
-  setAppStatus("Report copiato")
-}
-
-function sendMailReport(){
-  if(!lastReportText){
-    setAppStatus("Genera prima il report")
-    return
-  }
-
-  const subject = encodeURIComponent("Riepilogo presenze")
-  const body = encodeURIComponent(lastReportText)
-
-  window.location.href = `mailto:${BOSS_EMAIL}?subject=${subject}&body=${body}`
+  if(qs("sumMalattia")) qs("sumMalattia").textContent = String(malattia)
+  if(qs("sumLutto")) qs("sumLutto").textContent = String(lutto)
+  if(qs("sumMaternita")) qs("sumMaternita").textContent = String(maternita)
+  if(qs("sum104")) qs("sum104").textContent = String(legge104)
 }
 
 function exportCsv(){
@@ -597,9 +632,6 @@ function bindEvents(){
   if(qs("saveBtn")) qs("saveBtn").onclick = savePresenza
   if(qs("cancelEditBtn")) qs("cancelEditBtn").onclick = cancelEdit
 
-  if(qs("btnGenerateReport")) qs("btnGenerateReport").onclick = generateReport
-  if(qs("btnCopyReport")) qs("btnCopyReport").onclick = copyReport
-  if(qs("btnSendReport")) qs("btnSendReport").onclick = sendMailReport
   if(qs("btnExportCsv")) qs("btnExportCsv").onclick = exportCsv
   if(qs("btnResetFilters")) qs("btnResetFilters").onclick = resetFilters
 
@@ -614,6 +646,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if(qs("data")) qs("data").value = todayISO()
   if(qs("filterMonth")) qs("filterMonth").value = currentMonthValue()
+  if(qs("sede")) qs("sede").value = "Sielte Pomezia"
 
   const { data, error } = await sb.auth.getSession()
 
