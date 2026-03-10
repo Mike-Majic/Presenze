@@ -18,9 +18,7 @@ module.exports = async (req, res) => {
 
     const response = await supabaseFetch("/auth/v1/recover", {
       method: "POST",
-      body: {
-        email
-      }
+      body: { email }
     })
 
     if(!response.ok){
