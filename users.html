@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Utenti Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header>GESTIONE UTENTI ADMIN</header>
+
+  <div class="container">
+    <div class="card">
+      <div class="topbar">
+        <div class="pill" id="adminUserInfo">Utente: -</div>
+        <div class="pill" id="adminRoleInfo">Ruolo: ADMIN</div>
+        <div class="actions topbar-actions">
+          <button type="button" class="btn-blue" id="btnBackDashboard">Torna alla dashboard</button>
+          <button type="button" class="btn-green" id="btnRefreshUsers">Aggiorna</button>
+          <button type="button" class="btn-red" id="btnLogoutAdmin">Logout</button>
+        </div>
+      </div>
+
+      <div id="usersStatus" class="status"></div>
+
+      <div class="table-wrap" style="margin-top:16px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Registrato il</th>
+              <th>Ultimo accesso</th>
+              <th>Stato</th>
+              <th>Note admin</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="users.js"></script>
+</body>
+</html>
