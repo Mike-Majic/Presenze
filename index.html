@@ -13,9 +13,19 @@
   <div class="container">
 
     <div id="loginBox" class="card login-wrap">
-      <h2>Accesso</h2>
+      <h2>Accesso / Registrazione</h2>
 
       <div class="grid">
+        <div>
+          <label>Nome</label>
+          <input id="nomeRegister" type="text" placeholder="Nome dipendente" autocomplete="given-name">
+        </div>
+
+        <div>
+          <label>Cognome</label>
+          <input id="cognomeRegister" type="text" placeholder="Cognome dipendente" autocomplete="family-name">
+        </div>
+
         <div>
           <label>Email</label>
           <input id="email" type="email" placeholder="nome@email.it" autocomplete="email" inputmode="email">
@@ -39,7 +49,7 @@
     <div id="app" class="hidden">
 
       <div class="topbar">
-        <div class="pill" id="userInfo">Utente: -</div>
+        <div class="pill" id="userInfo">Dipendente: -</div>
         <div class="pill" id="roleInfo">Ruolo: -</div>
         <div class="actions topbar-actions">
           <button type="button" class="btn-orange hidden" id="btnManageUsers">Gestione utenti</button>
@@ -53,7 +63,7 @@
         <div class="form-grid">
           <div>
             <label>Nome</label>
-            <input id="nome" placeholder="Nome dipendente">
+            <input id="nome" placeholder="Nome dipendente" readonly>
           </div>
 
           <div>
@@ -65,9 +75,12 @@
             <label>Stato</label>
             <select id="stato">
               <option value="Presente">Presente</option>
-              <option value="Assente">Assente</option>
               <option value="Ferie">Ferie</option>
               <option value="Permesso">Permesso</option>
+              <option value="Malattia">Malattia</option>
+              <option value="Lutto">Lutto</option>
+              <option value="Maternità">Maternità</option>
+              <option value="104">104</option>
             </select>
           </div>
 
@@ -78,7 +91,11 @@
 
           <div>
             <label>Sede</label>
-            <input id="sede" placeholder="Sede / Cantiere">
+            <select id="sede">
+              <option value="Sielte Pomezia">Sielte Pomezia</option>
+              <option value="Sielte Spinaceto">Sielte Spinaceto</option>
+              <option value="Altro">Altro</option>
+            </select>
           </div>
 
           <div>
@@ -109,9 +126,12 @@
             <select id="filterState">
               <option value="">Tutti</option>
               <option value="Presente">Presente</option>
-              <option value="Assente">Assente</option>
               <option value="Ferie">Ferie</option>
               <option value="Permesso">Permesso</option>
+              <option value="Malattia">Malattia</option>
+              <option value="Lutto">Lutto</option>
+              <option value="Maternità">Maternità</option>
+              <option value="104">104</option>
             </select>
           </div>
 
@@ -130,9 +150,6 @@
 
         <div class="actions">
           <button type="button" class="btn-blue" id="btnResetFilters">Reset filtri</button>
-          <button type="button" class="btn-pink" id="btnGenerateReport">Genera report</button>
-          <button type="button" class="btn-orange" id="btnCopyReport">Copia report</button>
-          <button type="button" class="btn-green" id="btnSendReport">Invia al capo</button>
           <button type="button" class="btn-blue" id="btnExportCsv">Export CSV</button>
         </div>
 
@@ -153,11 +170,6 @@
           </div>
 
           <div class="summary-box">
-            <div class="summary-label">Assenti</div>
-            <div class="summary-value" id="sumAssenti">0</div>
-          </div>
-
-          <div class="summary-box">
             <div class="summary-label">Ferie</div>
             <div class="summary-value" id="sumFerie">0</div>
           </div>
@@ -166,18 +178,25 @@
             <div class="summary-label">Permessi</div>
             <div class="summary-value" id="sumPermessi">0</div>
           </div>
-        </div>
 
-        <div class="dashboard-grid">
-          <div class="panel">
-            <div class="panel-title">Distribuzione ore per stato</div>
-            <div id="chartBars"></div>
+          <div class="summary-box">
+            <div class="summary-label">Malattia</div>
+            <div class="summary-value" id="sumMalattia">0</div>
           </div>
 
-          <div class="panel">
-            <div class="panel-title">Report pronto</div>
-            <div id="reportBox" class="report-box">Premi "Genera report"</div>
-            <div class="small">Mail admin: m.colurci@gmail.com</div>
+          <div class="summary-box">
+            <div class="summary-label">Lutto</div>
+            <div class="summary-value" id="sumLutto">0</div>
+          </div>
+
+          <div class="summary-box">
+            <div class="summary-label">Maternità</div>
+            <div class="summary-value" id="sumMaternita">0</div>
+          </div>
+
+          <div class="summary-box">
+            <div class="summary-label">104</div>
+            <div class="summary-value" id="sum104">0</div>
           </div>
         </div>
       </div>
