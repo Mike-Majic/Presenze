@@ -184,11 +184,14 @@ function renderUsers(rows){
       }
     })
 
-    tdActions.appendChild(btnSaveNote)
-    tdActions.appendChild(document.createTextNode(" "))
-    tdActions.appendChild(btnToggleBlock)
-    tdActions.appendChild(document.createTextNode(" "))
-    tdActions.appendChild(btnDelete)
+const buttonsWrap = document.createElement("div")
+buttonsWrap.className = "table-buttons"
+
+buttonsWrap.appendChild(btnSaveNote)
+buttonsWrap.appendChild(btnToggleBlock)
+buttonsWrap.appendChild(btnDelete)
+
+tdActions.appendChild(buttonsWrap)
 
     tr.appendChild(tdEmail)
     tr.appendChild(tdCreated)
