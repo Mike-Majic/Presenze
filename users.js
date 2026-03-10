@@ -52,9 +52,29 @@ async function requireAdminPage(){
     return false
   }
 
+try{
+  const { data: profileData } = await sb
+    .from("user_profiles")
+    .select("nome, cognome")
+    .eq("user_id", session.user.id)
+    .maybeSingle()
+
+  const nome = (profileData?.nome || "").trim()
+  const cognome = (profileData?.cognome || "").trim()
+  const fullName = `${nome} ${cognome}`.trim()
+
+  if(qs("adminUserInfo")){
+    qs("adminUserInfo").textContent = fullName
+      ? `Utente: ${fullName}`
+      : `Utente: ${email}`
+  }
+}catch(err){
+  console.error("LOAD ADMIN PROFILE ERROR", err)
+
   if(qs("adminUserInfo")){
     qs("adminUserInfo").textContent = `Utente: ${email}`
   }
+}
 
   return true
 }
