@@ -13,17 +13,21 @@
   <div class="container">
 
     <div id="loginBox" class="card login-wrap">
-      <h2>Accesso / Registrazione</h2>
+      <h2>Accesso</h2>
 
       <div class="grid">
-        <div>
-          <label>Nome</label>
-          <input id="nomeRegister" type="text" placeholder="Nome dipendente" autocomplete="given-name">
-        </div>
+        <div id="registerFields" class="hidden">
+          <div class="grid">
+            <div>
+              <label>Nome</label>
+              <input id="nomeRegister" type="text" placeholder="Nome dipendente" autocomplete="given-name">
+            </div>
 
-        <div>
-          <label>Cognome</label>
-          <input id="cognomeRegister" type="text" placeholder="Cognome dipendente" autocomplete="family-name">
+            <div>
+              <label>Cognome</label>
+              <input id="cognomeRegister" type="text" placeholder="Cognome dipendente" autocomplete="family-name">
+            </div>
+          </div>
         </div>
 
         <div>
@@ -39,7 +43,9 @@
 
       <div class="actions">
         <button type="button" class="btn-green" id="btnLogin">Login</button>
-        <button type="button" class="btn-orange" id="btnRegister">Registrati</button>
+        <button type="button" class="btn-orange" id="btnRegisterMode">Compila registrazione</button>
+        <button type="button" class="btn-orange hidden" id="btnRegister">Conferma registrazione</button>
+        <button type="button" class="btn-gray hidden" id="btnCancelRegister">Annulla registrazione</button>
         <button type="button" class="btn-blue" id="btnResetPassword">Reset password</button>
       </div>
 
