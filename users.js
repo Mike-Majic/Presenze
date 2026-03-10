@@ -23,6 +23,12 @@ function formatDateTime(value){
   return d.toLocaleString("it-IT")
 }
 
+function getFullName(user){
+  const nome = (user.nome || "").trim()
+  const cognome = (user.cognome || "").trim()
+  return `${nome} ${cognome}`.trim()
+}
+
 async function getValidSession(){
   const { data, error } = await sb.auth.getSession()
 
@@ -99,7 +105,10 @@ function renderUsers(rows){
     const tr = document.createElement("tr")
 
     const tdEmail = document.createElement("td")
-    tdEmail.textContent = user.email || "-"
+    const fullName = getFullName(user)
+    tdEmail.innerHTML = fullName
+      ? `<strong>${fullName}</strong><br><span class="small">${user.email || "-"}</span>`
+      : (user.email || "-")
 
     const tdCreated = document.createElement("td")
     tdCreated.textContent = formatDateTime(user.created_at)
@@ -141,6 +150,25 @@ function renderUsers(rows){
       }
     })
 
+    const btnResetPassword = buildActionButton("Reset pw", "btn-gray", async () => {
+      const ok = window.confirm(`Inviare la mail di reset password a ${user.email}?`)
+      if(!ok) return
+
+      try{
+        setStatus("Invio reset password in corso ..")
+        await apiFetch("/api/admin/reset-password", {
+          method: "POST",
+          body: {
+            email: user.email
+          }
+        })
+        setStatus("Mail reset password inviata")
+      }catch(err){
+        console.error(err)
+        setStatus("Errore reset password: " + err.message)
+      }
+    })
+
     const btnToggleBlock = buildActionButton(
       user.is_blocked ? "Sblocca" : "Blocca",
       user.is_blocked ? "btn-green" : "btn-orange",
@@ -163,25 +191,6 @@ function renderUsers(rows){
         }
       }
     )
-
-    const btnResetPassword = buildActionButton("Reset pw", "btn-gray", async () => {
-      const ok = window.confirm(`Inviare la mail di reset password a ${user.email}?`)
-      if(!ok) return
-
-      try{
-        setStatus("Invio reset password in corso ..")
-        await apiFetch("/api/admin/reset-password", {
-          method: "POST",
-          body: {
-            email: user.email
-          }
-        })
-        setStatus("Mail reset password inviata")
-      }catch(err){
-        console.error(err)
-        setStatus("Errore reset password: " + err.message)
-      }
-    })
 
     const btnDelete = buildActionButton("Espelli", "btn-red", async () => {
       const ok = window.confirm(`Vuoi davvero espellere ${user.email}?`)
@@ -211,7 +220,7 @@ function renderUsers(rows){
     buttonsWrap.appendChild(btnToggleBlock)
     buttonsWrap.appendChild(btnDelete)
 
-tdActions.appendChild(buttonsWrap)
+    tdActions.appendChild(buttonsWrap)
 
     tr.appendChild(tdEmail)
     tr.appendChild(tdCreated)
