@@ -217,7 +217,9 @@ async function resetPassword(){
 
 async function logout(){
   try{
-    const { error } = await sb.auth.signOut()
+    setAppStatus("Logout in corso ..")
+
+    const { error } = await sb.auth.signOut({ scope: "local" })
 
     if(error){
       setAppStatus("Errore logout: " + error.message)
@@ -225,6 +227,7 @@ async function logout(){
     }
 
     currentUser = null
+    isAdmin = false
     presenze = []
     editingId = null
     lastReportText = ""
@@ -233,9 +236,12 @@ async function logout(){
     clearForm()
     showLogin()
     setAuthStatus("Logout effettuato")
+    setAppStatus("")
+
+    window.location.replace("/")
   }catch(err){
     console.error("LOGOUT ERROR", err)
-    setAppStatus("Errore logout")
+    setAppStatus("Errore logout: " + (err.message || "errore sconosciuto"))
   }
 }
 
@@ -245,6 +251,8 @@ async function savePresenza(){
       setAppStatus("Utente non autenticato")
       return
     }
+
+    setAppStatus("Salvataggio in corso ..")
 
     const nome = qs("nome")?.value.trim() || ""
     const data = qs("data")?.value || ""
@@ -272,7 +280,8 @@ async function savePresenza(){
           note
         })
         .eq("id", editingId)
-    } else {
+        .select()
+    }else{
       result = await sb
         .from("presenze")
         .insert([{
@@ -285,6 +294,7 @@ async function savePresenza(){
           sede,
           note
         }])
+        .select()
     }
 
     console.log("SAVE RESULT", result)
@@ -300,7 +310,7 @@ async function savePresenza(){
     setAppStatus("Presenza salvata")
   }catch(err){
     console.error("SAVE ERROR", err)
-    setAppStatus("Errore salvataggio")
+    setAppStatus("Errore salvataggio: " + (err.message || "errore sconosciuto"))
   }
 }
 
