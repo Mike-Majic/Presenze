@@ -18,6 +18,7 @@ let resetRequestInCorso = false
 let supportRequests = []
 let showAppInCorso = false
 let authReady = false
+let showingClosedRequests = false
 
 function qs(id){
   return document.getElementById(id)
@@ -54,7 +55,21 @@ async function invokeEdgeFunction(functionName, payload){
   })
 
   if(error){
-    throw error
+    console.error(`EDGE FUNCTION ERROR [${functionName}]`, error)
+
+    let extra = ""
+    try{
+      const response = error?.context?.response
+      if(response){
+        const text = await response.text()
+        extra = text || ""
+        console.error(`EDGE FUNCTION RAW RESPONSE [${functionName}]`, text)
+      }
+    }catch(readErr){
+      console.error(`EDGE FUNCTION RESPONSE READ ERROR [${functionName}]`, readErr)
+    }
+
+    throw new Error(extra || error.message || `Errore funzione ${functionName}`)
   }
 
   if(data?.error){
@@ -83,7 +98,18 @@ async function apiFetch(path, options = {}){
   const data = await response.json().catch(() => ({}))
 
   if(!response.ok){
-    throw new Error(data.error || "Errore API")
+    console.error("API FETCH ERROR", {
+      path,
+      status: response.status,
+      data
+    })
+
+    const detailText =
+      data?.details
+        ? ` - ${typeof data.details === "string" ? data.details : JSON.stringify(data.details)}`
+        : ""
+
+    throw new Error((data.error || "Errore API") + detailText)
   }
 
   return data
@@ -157,6 +183,40 @@ function openResetRequestModal(){
 
 function closeResetRequestModal(){
   closeModal("resetRequestModal")
+}
+
+function openClosedRequestsView(){
+  showingClosedRequests = true
+
+  if(qs("openSupportWrap")) qs("openSupportWrap").classList.add("hidden")
+  if(qs("closedSupportWrap")) qs("closedSupportWrap").classList.remove("hidden")
+  if(qs("btnOpenClosedRequests")) qs("btnOpenClosedRequests").classList.add("hidden")
+  if(qs("btnBackToOpenRequests")) qs("btnBackToOpenRequests").classList.remove("hidden")
+
+  renderSupportRequests()
+}
+
+function openOpenRequestsView(){
+  showingClosedRequests = false
+
+  if(qs("openSupportWrap")) qs("openSupportWrap").classList.remove("hidden")
+  if(qs("closedSupportWrap")) qs("closedSupportWrap").classList.add("hidden")
+  if(qs("btnOpenClosedRequests")) qs("btnOpenClosedRequests").classList.remove("hidden")
+  if(qs("btnBackToOpenRequests")) qs("btnBackToOpenRequests").classList.add("hidden")
+
+  renderSupportRequests()
+}
+
+function openLogView(){
+  if(qs("logCard")) qs("logCard").classList.remove("hidden")
+  if(qs("btnOpenLog")) qs("btnOpenLog").classList.add("hidden")
+  if(qs("btnCloseLog")) qs("btnCloseLog").classList.remove("hidden")
+}
+
+function closeLogView(){
+  if(qs("logCard")) qs("logCard").classList.add("hidden")
+  if(qs("btnOpenLog")) qs("btnOpenLog").classList.remove("hidden")
+  if(qs("btnCloseLog")) qs("btnCloseLog").classList.add("hidden")
 }
 
 function todayISO(){
@@ -239,6 +299,7 @@ function resetAppState(){
   presenze = []
   supportRequests = []
   editingId = null
+  showingClosedRequests = false
 
   renderTable([])
   renderSupportRequests()
@@ -378,6 +439,8 @@ async function showApp(user){
     }
 
     clearForm()
+    openOpenRequestsView()
+    closeLogView()
 
     if(qs("filterMonth") && !qs("filterMonth").value){
       qs("filterMonth").value = currentMonthValue()
@@ -807,69 +870,95 @@ function renderTable(rows){
 }
 
 function renderSupportRequests(){
-  const tbody = qs("supportTable")
-  if(!tbody) return
+  const openBody = qs("supportTable")
+  const closedBody = qs("supportClosedTable")
 
-  tbody.innerHTML = ""
+  if(openBody) openBody.innerHTML = ""
+  if(closedBody) closedBody.innerHTML = ""
 
-  if(!supportRequests.length){
-    tbody.innerHTML = `<tr><td colspan="9">Nessuna richiesta supporto</td></tr>`
-    return
+  const openRows = supportRequests.filter(r => (r.status || "new") === "new")
+  const closedRows = supportRequests.filter(r => r.status === "done")
+
+  if(openBody){
+    if(!openRows.length){
+      openBody.innerHTML = `<tr><td colspan="9">Nessuna richiesta aperta</td></tr>`
+    }else{
+      openRows.forEach(r => {
+        const tr = document.createElement("tr")
+
+        tr.innerHTML = `
+          <td data-label="ID">${r.id}</td>
+          <td data-label="Tipo">${supportTypeLabel(r.request_type)}</td>
+          <td data-label="Nome">${r.nome || "-"}</td>
+          <td data-label="Email">${r.email || "-"}</td>
+          <td data-label="Note">${r.note || "-"}</td>
+          <td data-label="Origine">${r.source || "-"}</td>
+          <td data-label="Data">${formatDateTime(r.created_at)}</td>
+          <td data-label="Stato">${r.status || "-"}</td>
+          <td data-label="Azioni">
+            <div class="table-buttons" id="support-actions-open-${r.id}"></div>
+          </td>
+        `
+
+        openBody.appendChild(tr)
+
+        const wrap = qs(`support-actions-open-${r.id}`)
+        if(!wrap) return
+
+        const btnDone = document.createElement("button")
+        btnDone.type = "button"
+        btnDone.className = "btn-green"
+        btnDone.textContent = "Chiudi"
+        btnDone.onclick = () => updateSupportStatus(r.id, "done")
+        wrap.appendChild(btnDone)
+
+        if(r.request_type === "reset_password"){
+          const btnDirectReset = document.createElement("button")
+          btnDirectReset.type = "button"
+          btnDirectReset.className = "btn-orange"
+          btnDirectReset.textContent = "Invia reset diretto"
+          btnDirectReset.onclick = () => adminDirectReset(r.email, r.id)
+          wrap.appendChild(btnDirectReset)
+        }
+      })
+    }
   }
 
-  supportRequests.forEach(r => {
-    const tr = document.createElement("tr")
+  if(closedBody){
+    if(!closedRows.length){
+      closedBody.innerHTML = `<tr><td colspan="9">Nessuna richiesta chiusa</td></tr>`
+    }else{
+      closedRows.forEach(r => {
+        const tr = document.createElement("tr")
 
-    tr.innerHTML = `
-      <td data-label="ID">${r.id}</td>
-      <td data-label="Tipo">${supportTypeLabel(r.request_type)}</td>
-      <td data-label="Nome">${r.nome || "-"}</td>
-      <td data-label="Email">${r.email || "-"}</td>
-      <td data-label="Note">${r.note || "-"}</td>
-      <td data-label="Origine">${r.source || "-"}</td>
-      <td data-label="Data">${formatDateTime(r.created_at)}</td>
-      <td data-label="Stato">${r.status || "-"}</td>
-      <td data-label="Azioni">
-        <div class="table-buttons" id="support-actions-${r.id}"></div>
-      </td>
-    `
+        tr.innerHTML = `
+          <td data-label="ID">${r.id}</td>
+          <td data-label="Tipo">${supportTypeLabel(r.request_type)}</td>
+          <td data-label="Nome">${r.nome || "-"}</td>
+          <td data-label="Email">${r.email || "-"}</td>
+          <td data-label="Note">${r.note || "-"}</td>
+          <td data-label="Origine">${r.source || "-"}</td>
+          <td data-label="Data">${formatDateTime(r.created_at)}</td>
+          <td data-label="Stato">${r.status || "-"}</td>
+          <td data-label="Azioni">
+            <div class="table-buttons" id="support-actions-closed-${r.id}"></div>
+          </td>
+        `
 
-    tbody.appendChild(tr)
+        closedBody.appendChild(tr)
 
-    const wrap = qs(`support-actions-${r.id}`)
-    if(!wrap) return
+        const wrap = qs(`support-actions-closed-${r.id}`)
+        if(!wrap) return
 
-    const btnDone = document.createElement("button")
-    btnDone.type = "button"
-    btnDone.className = "btn-green"
-    btnDone.textContent = "Chiudi"
-    btnDone.onclick = () => updateSupportStatus(r.id, "done")
-
-    const btnArchive = document.createElement("button")
-    btnArchive.type = "button"
-    btnArchive.className = "btn-gray"
-    btnArchive.textContent = "Archivia"
-    btnArchive.onclick = () => updateSupportStatus(r.id, "archived")
-
-    const btnNew = document.createElement("button")
-    btnNew.type = "button"
-    btnNew.className = "btn-blue"
-    btnNew.textContent = "Riapri"
-    btnNew.onclick = () => updateSupportStatus(r.id, "new")
-
-    wrap.appendChild(btnDone)
-    wrap.appendChild(btnArchive)
-    wrap.appendChild(btnNew)
-
-    if(r.request_type === "reset_password"){
-      const btnDirectReset = document.createElement("button")
-      btnDirectReset.type = "button"
-      btnDirectReset.className = "btn-orange"
-      btnDirectReset.textContent = "Invia reset diretto"
-      btnDirectReset.onclick = () => adminDirectReset(r.email, r.id)
-      wrap.appendChild(btnDirectReset)
+        const btnNew = document.createElement("button")
+        btnNew.type = "button"
+        btnNew.className = "btn-blue"
+        btnNew.textContent = "Riapri"
+        btnNew.onclick = () => updateSupportStatus(r.id, "new")
+        wrap.appendChild(btnNew)
+      })
     }
-  })
+  }
 }
 
 function editPresenza(id){
@@ -939,10 +1028,7 @@ function updateSummary(rows){
   const presenti = rows.filter(r => r.stato === "Presente").length
   const ferie = rows.filter(r => r.stato === "Ferie").length
   const permessi = rows.filter(r => r.stato === "Permesso").length
-
-  const assenti = rows.filter(r =>
-    r.stato !== "Presente"
-  ).length
+  const assenti = rows.filter(r => r.stato !== "Presente").length
 
   if(qs("sumRecord")) qs("sumRecord").textContent = String(totalRecords)
   if(qs("sumOre")) qs("sumOre").textContent = String(totalOre)
@@ -1007,13 +1093,11 @@ function sendToBoss(){
 function updateSupportSummary(){
   const rows = supportRequests || []
 
-  const newCount = rows.filter(r => r.status === "new").length
+  const newCount = rows.filter(r => (r.status || "new") === "new").length
   const doneCount = rows.filter(r => r.status === "done").length
-  const archivedCount = rows.filter(r => r.status === "archived").length
 
   if(qs("supportCountNew")) qs("supportCountNew").textContent = String(newCount)
   if(qs("supportCountDone")) qs("supportCountDone").textContent = String(doneCount)
-  if(qs("supportCountArchived")) qs("supportCountArchived").textContent = String(archivedCount)
   if(qs("supportBadgeNew")) qs("supportBadgeNew").textContent = String(newCount)
 }
 
@@ -1130,6 +1214,10 @@ function bindEvents(){
 
   if(qs("btnLogout")) qs("btnLogout").onclick = logout
   if(qs("btnManageUsers")) qs("btnManageUsers").onclick = goManageUsers
+  if(qs("btnOpenClosedRequests")) qs("btnOpenClosedRequests").onclick = openClosedRequestsView
+  if(qs("btnBackToOpenRequests")) qs("btnBackToOpenRequests").onclick = openOpenRequestsView
+  if(qs("btnOpenLog")) qs("btnOpenLog").onclick = openLogView
+  if(qs("btnCloseLog")) qs("btnCloseLog").onclick = closeLogView
 
   if(qs("saveBtn")) qs("saveBtn").onclick = savePresenza
   if(qs("cancelEditBtn")) qs("cancelEditBtn").onclick = cancelEdit
@@ -1166,6 +1254,8 @@ window.deletePresenza = deletePresenza
 window.addEventListener("DOMContentLoaded", async () => {
   bindEvents()
   clearForm()
+  closeLogView()
+  openOpenRequestsView()
 
   if(qs("filterMonth")) qs("filterMonth").value = currentMonthValue()
 
