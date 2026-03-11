@@ -10,26 +10,54 @@ function sendJson(res, status, payload){
 
 function readBody(req){
   return new Promise((resolve, reject) => {
-    let raw = ""
-
-    req.on("data", chunk => {
-      raw += chunk
-    })
-
-    req.on("end", () => {
-      if(!raw) return resolve({})
-      try{
-        resolve(JSON.parse(raw))
-      }catch(err){
-        reject(err)
+    try{
+      if(req.body && typeof req.body === "object"){
+        return resolve(req.body)
       }
-    })
 
-    req.on("error", reject)
+      if(typeof req.body === "string"){
+        if(!req.body.trim()) return resolve({})
+        try{
+          return resolve(JSON.parse(req.body))
+        }catch(err){
+          return reject(err)
+        }
+      }
+
+      let raw = ""
+
+      req.on("data", chunk => {
+        raw += chunk
+      })
+
+      req.on("end", () => {
+        if(!raw || !raw.trim()) return resolve({})
+
+        try{
+          resolve(JSON.parse(raw))
+        }catch(err){
+          reject(err)
+        }
+      })
+
+      req.on("error", reject)
+    }catch(err){
+      reject(err)
+    }
   })
 }
 
 async function supabaseFetch(path, options = {}){
+  if(!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY){
+    return {
+      ok: false,
+      status: 500,
+      data: {
+        error: "Variabili ambiente Supabase mancanti"
+      }
+    }
+  }
+
   const response = await fetch(`${SUPABASE_URL}${path}`, {
     method: options.method || "GET",
     headers: {
@@ -38,7 +66,7 @@ async function supabaseFetch(path, options = {}){
       "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       ...(options.headers || {})
     },
-    body: options.body ? JSON.stringify(options.body) : undefined
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined
   })
 
   const data = await response.json().catch(() => ({}))
@@ -51,39 +79,54 @@ async function supabaseFetch(path, options = {}){
 }
 
 async function requireAdmin(req, res){
-  const authHeader = req.headers.authorization || ""
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : ""
+  try{
+    const authHeader = req.headers.authorization || ""
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : ""
 
-  if(!token){
-    sendJson(res, 401, { error: "Token mancante" })
-    return null
-  }
-
-  const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      "apikey": SUPABASE_SERVICE_ROLE_KEY,
-      "Authorization": `Bearer ${token}`
+    if(!token){
+      sendJson(res, 401, { error: "Token mancante" })
+      return null
     }
-  })
 
-  const user = await userResponse.json().catch(() => null)
+    if(!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY){
+      sendJson(res, 500, { error: "Variabili ambiente Supabase mancanti" })
+      return null
+    }
 
-  if(!userResponse.ok || !user){
-    sendJson(res, 401, { error: "Sessione non valida" })
+    const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": `Bearer ${token}`
+      }
+    })
+
+    const user = await userResponse.json().catch(() => null)
+
+    if(!userResponse.ok || !user){
+      sendJson(res, 401, { error: "Sessione non valida" })
+      return null
+    }
+
+    if((user.email || "").toLowerCase() !== ADMIN_EMAIL){
+      sendJson(res, 403, { error: "Non autorizzato" })
+      return null
+    }
+
+    return user
+  }catch(err){
+    console.error("REQUIRE ADMIN ERROR", err)
+    sendJson(res, 500, { error: "Errore verifica admin" })
     return null
   }
-
-  if((user.email || "").toLowerCase() !== ADMIN_EMAIL){
-    sendJson(res, 403, { error: "Non autorizzato" })
-    return null
-  }
-
-  return user
 }
 
 async function getUserMeta(userId){
-  const response = await supabaseFetch(`/rest/v1/user_admin_meta?user_id=eq.${encodeURIComponent(userId)}&select=user_id,email,is_blocked,note_admin,created_at,updated_at`)
+  const response = await supabaseFetch(
+    `/rest/v1/user_admin_meta?user_id=eq.${encodeURIComponent(userId)}&select=user_id,email,is_blocked,note_admin,created_at,updated_at`
+  )
+
   if(!response.ok) return null
+
   return Array.isArray(response.data) ? response.data[0] || null : null
 }
 
