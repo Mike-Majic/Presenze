@@ -1,371 +1,116 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Presenze</title>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Presenze V5</title>
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-      font-family:Arial, Helvetica, sans-serif;
-    }
-
-    body{
-      background:#0f172a;
-      color:#e5e7eb;
-      min-height:100vh;
-      padding:20px;
-    }
-
-    .hidden{
-      display:none !important;
-    }
-
-    .container{
-      max-width:1200px;
-      margin:0 auto;
-    }
-
-    .card{
-      background:#111827;
-      border:1px solid #1f2937;
-      border-radius:16px;
-      padding:20px;
-      margin-bottom:20px;
-      box-shadow:0 10px 30px rgba(0,0,0,.25);
-    }
-
-    h1, h2, h3{
-      margin-bottom:14px;
-    }
-
-    .subtitle{
-      color:#9ca3af;
-      margin-bottom:18px;
-    }
-
-    .grid{
-      display:grid;
-      gap:14px;
-    }
-
-    .grid-2{
-      grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
-    }
-
-    .grid-3{
-      grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-    }
-
-    label{
-      display:block;
-      font-size:14px;
-      color:#cbd5e1;
-      margin-bottom:6px;
-    }
-
-    input, select, textarea, button{
-      width:100%;
-      border-radius:10px;
-      border:1px solid #374151;
-      padding:12px 14px;
-      font-size:14px;
-    }
-
-    input, select, textarea{
-      background:#0b1220;
-      color:#e5e7eb;
-    }
-
-    textarea{
-      min-height:100px;
-      resize:vertical;
-    }
-
-    button{
-      cursor:pointer;
-      font-weight:700;
-      border:none;
-      transition:.18s ease;
-    }
-
-    button:hover{
-      transform:translateY(-1px);
-      opacity:.96;
-    }
-
-    .btn-primary{ background:#2563eb; color:white; }
-    .btn-secondary{ background:#334155; color:white; }
-    .btn-green{ background:#16a34a; color:white; }
-    .btn-red{ background:#dc2626; color:white; }
-    .btn-orange{ background:#ea580c; color:white; }
-    .btn-gray{ background:#4b5563; color:white; }
-    .btn-blue{ background:#2563eb; color:white; }
-
-    .actions{
-      display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-      gap:10px;
-      margin-top:14px;
-    }
-
-    .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:20px;
-    }
-
-    .status{
-      margin-top:12px;
-      min-height:22px;
-      color:#fbbf24;
-      font-size:14px;
-    }
-
-    .role-admin{
-      color:#f97316;
-      font-weight:700;
-    }
-
-    .role-user{
-      color:#22c55e;
-      font-weight:700;
-    }
-
-    .summary{
-      display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
-      gap:12px;
-    }
-
-    .summary .box{
-      background:#0b1220;
-      border:1px solid #1f2937;
-      border-radius:12px;
-      padding:14px;
-      text-align:center;
-    }
-
-    .summary .box strong{
-      display:block;
-      font-size:22px;
-      margin-top:6px;
-      color:white;
-    }
-
-    .table-wrap{
-      overflow:auto;
-      border-radius:12px;
-      border:1px solid #1f2937;
-    }
-
-    table{
-      width:100%;
-      border-collapse:collapse;
-      min-width:900px;
-      background:#0b1220;
-    }
-
-    th, td{
-      padding:12px;
-      border-bottom:1px solid #1f2937;
-      text-align:left;
-      vertical-align:top;
-    }
-
-    th{
-      background:#111827;
-      color:#cbd5e1;
-      font-size:13px;
-    }
-
-    .table-buttons{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-
-    .table-buttons button{
-      width:auto;
-      padding:8px 10px;
-      font-size:12px;
-    }
-
-    .password-row{
-      display:grid;
-      grid-template-columns:1fr 56px;
-      gap:8px;
-      align-items:end;
-    }
-
-    .modal{
-      position:fixed;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      z-index:1001;
-      padding:16px;
-    }
-
-    .modal-box{
-      width:min(560px, 100%);
-      background:#111827;
-      border:1px solid #1f2937;
-      border-radius:16px;
-      padding:20px;
-      position:relative;
-      z-index:1002;
-      box-shadow:0 20px 60px rgba(0,0,0,.45);
-    }
-
-    .overlay{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.6);
-      z-index:1000;
-    }
-
-    #reportBox{
-      white-space:pre-wrap;
-      background:#0b1220;
-      border:1px solid #1f2937;
-      border-radius:12px;
-      padding:14px;
-      min-height:120px;
-    }
-
-    .header-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-
-    .header-actions button{
-      width:auto;
-      padding:10px 14px;
-    }
-
-    @media (max-width: 768px){
-      body{
-        padding:12px;
-      }
-
-      .topbar{
-        align-items:flex-start;
-      }
-    }
-  </style>
 </head>
 <body>
-  <div id="overlay" class="overlay hidden"></div>
+  <header>GESTIONE PRESENZE LAVORO</header>
 
   <div class="container">
-    <div id="loginBox" class="card">
-      <h1>Gestione Presenze</h1>
-      <p class="subtitle">Accedi o registrati per inserire e consultare le presenze.</p>
 
-      <div class="grid grid-2">
+    <div id="loginBox" class="card login-wrap">
+      <h2>Accesso</h2>
+
+      <div class="grid">
         <div id="registerFields" class="hidden">
-          <label for="nomeRegister">Nome</label>
-          <input type="text" id="nomeRegister" placeholder="Nome" />
-        </div>
+          <div class="grid">
+            <div>
+              <label>Nome</label>
+              <input id="nomeRegister" type="text" placeholder="Nome dipendente" autocomplete="given-name">
+            </div>
 
-        <div id="registerFieldsSpacer" class="hidden"></div>
-
-        <div id="registerFields2" class="hidden">
-          <label for="cognomeRegister">Cognome</label>
-          <input type="text" id="cognomeRegister" placeholder="Cognome" />
-        </div>
-      </div>
-
-      <div class="grid grid-2" style="margin-top:14px;">
-        <div>
-          <label for="email">Email</label>
-          <input type="email" id="email" placeholder="nome@azienda.it" />
+            <div>
+              <label>Cognome</label>
+              <input id="cognomeRegister" type="text" placeholder="Cognome dipendente" autocomplete="family-name">
+            </div>
+          </div>
         </div>
 
         <div>
-          <label for="password">Password</label>
-          <div class="password-row">
-            <input type="password" id="password" placeholder="Password" />
-            <button type="button" id="btnTogglePassword" class="btn-secondary">👁</button>
+          <label>Email</label>
+          <input id="email" type="email" placeholder="nome@email.it" autocomplete="email" inputmode="email">
+        </div>
+
+        <div>
+          <label>Password</label>
+          <div class="password-wrap">
+            <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+            <button type="button" class="password-toggle" id="btnTogglePassword" aria-label="Mostra o nascondi password">👁</button>
           </div>
         </div>
       </div>
 
       <div class="actions">
-        <button type="button" id="btnLogin" class="btn-primary">Accedi</button>
-        <button type="button" id="btnRegisterMode" class="btn-secondary">Registrati</button>
-        <button type="button" id="btnRegister" class="btn-green hidden">Crea account</button>
-        <button type="button" id="btnCancelRegister" class="btn-gray hidden">Annulla registrazione</button>
-        <button type="button" id="btnHelp" class="btn-orange">Aiuto</button>
-        <button type="button" id="btnRequestReset" class="btn-red">Reset password</button>
+        <button type="button" class="btn-gray" id="btnHelp">AIUTO</button>
+        <button type="button" class="btn-green" id="btnLogin">Login</button>
+        <button type="button" class="btn-orange" id="btnRegisterMode">Compila registrazione</button>
+        <button type="button" class="btn-orange hidden" id="btnRegister">Conferma registrazione</button>
+        <button type="button" class="btn-gray hidden" id="btnCancelRegister">Annulla registrazione</button>
+        <button type="button" class="btn-blue" id="btnRequestReset">Richiedi reset password</button>
       </div>
 
       <div id="authStatus" class="status"></div>
     </div>
 
     <div id="app" class="hidden">
-      <div class="topbar card">
-        <div>
-          <h2>Dashboard Presenze</h2>
-          <div id="userInfo">Dipendente: -</div>
-          <div id="roleInfo">Ruolo: -</div>
-        </div>
 
-        <div class="header-actions">
-          <button type="button" id="btnManageUsers" class="btn-secondary hidden">Gestione utenti</button>
-          <button type="button" id="btnLogout" class="btn-red">Logout</button>
+      <div class="topbar">
+        <div class="pill" id="userInfo">Dipendente: -</div>
+        <div class="pill" id="roleInfo">Ruolo: -</div>
+        <div class="actions topbar-actions">
+          <button type="button" class="btn-orange hidden" id="btnManageUsers">Gestione utenti</button>
+          <button type="button" class="btn-red" id="btnLogout">Logout</button>
         </div>
       </div>
 
       <div class="card">
         <h3 id="formTitle">Inserisci presenza</h3>
 
-        <div class="grid grid-3">
+        <div class="form-grid">
           <div>
-            <label for="nome">Nome</label>
-            <input type="text" id="nome" />
+            <label>Nome</label>
+            <input id="nome" placeholder="Nome dipendente" readonly>
           </div>
 
           <div>
-            <label for="data">Data</label>
-            <input type="date" id="data" />
+            <label>Data</label>
+            <input id="data" type="date">
           </div>
 
           <div>
-            <label for="stato">Stato</label>
+            <label>Stato</label>
             <select id="stato">
               <option value="Presente">Presente</option>
               <option value="Ferie">Ferie</option>
               <option value="Permesso">Permesso</option>
               <option value="Malattia">Malattia</option>
-              <option value="Assente">Assente</option>
+              <option value="Lutto">Lutto</option>
+              <option value="Maternità">Maternità</option>
+              <option value="104">104</option>
             </select>
           </div>
 
           <div>
-            <label for="ore">Ore</label>
-            <input type="number" id="ore" min="0" step="0.5" />
+            <label>Ore</label>
+            <input id="ore" type="number" step="0.5" min="0" placeholder="0">
           </div>
 
           <div>
-            <label for="sede">Sede</label>
-            <input type="text" id="sede" />
+            <label>Sede</label>
+            <select id="sede">
+              <option value="Sielte Pomezia">Sielte Pomezia</option>
+              <option value="Sielte Spinaceto">Sielte Spinaceto</option>
+              <option value="Altro">Altro</option>
+            </select>
           </div>
 
           <div>
-            <label for="note">Note</label>
-            <input type="text" id="note" />
+            <label>Note</label>
+            <input id="note" placeholder="Note">
           </div>
         </div>
 
@@ -378,33 +123,35 @@
       </div>
 
       <div class="card">
-        <h3>Filtri</h3>
+        <h3>Filtri e riepilogo</h3>
 
-        <div class="grid grid-3">
+        <div class="form-grid">
           <div>
-            <label for="filterMonth">Mese</label>
-            <input type="month" id="filterMonth" />
+            <label>Mese</label>
+            <input id="filterMonth" type="month">
           </div>
 
           <div>
-            <label for="filterState">Stato</label>
+            <label>Stato</label>
             <select id="filterState">
               <option value="">Tutti</option>
               <option value="Presente">Presente</option>
               <option value="Ferie">Ferie</option>
               <option value="Permesso">Permesso</option>
               <option value="Malattia">Malattia</option>
-              <option value="Assente">Assente</option>
+              <option value="Lutto">Lutto</option>
+              <option value="Maternità">Maternità</option>
+              <option value="104">104</option>
             </select>
           </div>
 
           <div>
-            <label for="filterName">Cerca nome</label>
-            <input type="text" id="filterName" placeholder="Scrivi un nome" />
+            <label>Cerca nome</label>
+            <input id="filterName" placeholder="Scrivi un nome">
           </div>
 
           <div id="adminFilterWrap" class="hidden">
-            <label for="filterEmployee">Dipendente</label>
+            <label>Dipendente</label>
             <select id="filterEmployee">
               <option value="">Tutti</option>
             </select>
@@ -412,73 +159,76 @@
         </div>
 
         <div class="actions">
-          <button type="button" id="btnResetFilters" class="btn-gray">Reset filtri</button>
-        </div>
+<div class="actions">
+  <button type="button" class="btn-blue" id="btnResetFilters">Reset filtri</button>
+  <button type="button" class="btn-pink" id="btnGenerateReport">Genera report</button>
+  <button type="button" class="btn-orange" id="btnCopyReport">Copia report</button>
+  <button type="button" class="btn-green" id="btnSendToBoss">Invia al capo</button>
+</div>
+
+<div class="summary-grid">
+  <div class="summary-box">
+    <div class="summary-label">Totale record</div>
+    <div class="summary-value" id="sumRecord">0</div>
+  </div>
+
+  <div class="summary-box">
+    <div class="summary-label">Totale ore</div>
+    <div class="summary-value" id="sumOre">0</div>
+  </div>
+
+  <div class="summary-box">
+    <div class="summary-label">Presenti</div>
+    <div class="summary-value" id="sumPresenti">0</div>
+  </div>
+
+  <div class="summary-box">
+    <div class="summary-label">Assenti</div>
+    <div class="summary-value" id="sumAssenti">0</div>
+  </div>
+
+  <div class="summary-box">
+    <div class="summary-label">Ferie</div>
+    <div class="summary-value" id="sumFerie">0</div>
+  </div>
+
+  <div class="summary-box">
+    <div class="summary-label">Permessi</div>
+    <div class="summary-value" id="sumPermessi">0</div>
+  </div>
+</div>
+
+<div class="card" id="reportCard">
+  <h3>Report</h3>
+  <div id="reportBox" class="report-box">Nessun report generato</div>
+</div>
       </div>
 
-      <div class="card">
-        <h3>Riepilogo</h3>
-        <div class="summary">
-          <div class="box">Record<strong id="sumRecord">0</strong></div>
-          <div class="box">Ore<strong id="sumOre">0</strong></div>
-          <div class="box">Presenti<strong id="sumPresenti">0</strong></div>
-          <div class="box">Assenti<strong id="sumAssenti">0</strong></div>
-          <div class="box">Ferie<strong id="sumFerie">0</strong></div>
-          <div class="box">Permessi<strong id="sumPermessi">0</strong></div>
-        </div>
-      </div>
+      <div class="card hidden" id="adminSupportCard">
+        <h3>Richieste supporto admin</h3>
 
-      <div class="card">
-        <h3>Tabella presenze</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Data</th>
-                <th>Stato</th>
-                <th>Ore</th>
-                <th>Sede</th>
-                <th>Note</th>
-                <th>Azioni</th>
-              </tr>
-            </thead>
-            <tbody id="tabella"></tbody>
-          </table>
+        <div class="actions">
+          <button type="button" class="btn-blue" id="btnRefreshSupport">Aggiorna richieste</button>
         </div>
 
-        <div class="actions" style="margin-top:14px;">
-          <button type="button" id="btnExportCsv" class="btn-secondary" onclick="exportCsv()">Export CSV</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Report</h3>
-        <div id="reportBox"></div>
-
-        <div class="actions" style="margin-top:14px;">
-          <button type="button" id="btnGenerateReport" class="btn-primary">Genera report</button>
-          <button type="button" id="btnCopyReport" class="btn-secondary">Copia report</button>
-          <button type="button" id="btnSendToBoss" class="btn-orange">Invia al responsabile</button>
-        </div>
-      </div>
-
-      <div id="adminSupportCard" class="card hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-          <div>
-            <h3>Richieste supporto</h3>
-            <p class="subtitle">Nuove richieste: <span id="supportBadgeNew">0</span></p>
+        <div class="summary-grid">
+          <div class="summary-box">
+            <div class="summary-label">Nuove</div>
+            <div class="summary-value" id="supportCountNew">0</div>
           </div>
-          <button type="button" id="btnRefreshSupport" class="btn-secondary">Aggiorna richieste</button>
+
+          <div class="summary-box">
+            <div class="summary-label">Chiuse</div>
+            <div class="summary-value" id="supportCountDone">0</div>
+          </div>
+
+          <div class="summary-box">
+            <div class="summary-label">Archiviate</div>
+            <div class="summary-value" id="supportCountArchived">0</div>
+          </div>
         </div>
 
-        <div class="summary" style="margin-bottom:16px;">
-          <div class="box">Nuove<strong id="supportCountNew">0</strong></div>
-          <div class="box">Chiuse<strong id="supportCountDone">0</strong></div>
-          <div class="box">Archiviate<strong id="supportCountArchived">0</strong></div>
-        </div>
-
-        <div class="table-wrap">
+        <div class="table-wrap" style="margin-top:16px;">
           <table>
             <thead>
               <tr>
@@ -497,82 +247,80 @@
           </table>
         </div>
       </div>
+
+      <div class="card">
+        <h3>Presenze</h3>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Data</th>
+                <th>Stato</th>
+                <th>Ore</th>
+                <th>Sede</th>
+                <th>Note</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="tabella"></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
+
+    <div id="overlay" class="overlay hidden"></div>
+
+    <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="card modal-card">
+        <h3 id="helpModalTitle">Richiesta aiuto</h3>
+        <div class="grid">
+          <div>
+            <label>Nome e cognome</label>
+            <input id="helpNome" type="text" placeholder="Nome e cognome">
+          </div>
+          <div>
+            <label>Mail</label>
+            <input id="helpEmail" type="email" placeholder="nome@email.it" inputmode="email">
+          </div>
+          <div>
+            <label>Note</label>
+            <textarea id="helpNote" placeholder="Scrivi qui il problema o la richiesta"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-green" id="btnSendHelp">Invia richiesta</button>
+          <button type="button" class="btn-gray" id="btnCloseHelp">Chiudi</button>
+        </div>
+        <div id="helpStatus" class="status"></div>
+      </div>
+    </div>
+
+    <div id="resetRequestModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resetRequestTitle">
+      <div class="card modal-card">
+        <h3 id="resetRequestTitle">Richiedi reset password</h3>
+        <div class="grid">
+          <div>
+            <label>Mail account</label>
+            <input id="resetRequestEmail" type="email" placeholder="nome@email.it" inputmode="email">
+          </div>
+          <div>
+            <label>Note</label>
+            <textarea id="resetRequestNote" placeholder="Aggiungi una nota per l'amministratore"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-blue" id="btnSendResetRequest">Invia richiesta</button>
+          <button type="button" class="btn-gray" id="btnCloseResetRequest">Chiudi</button>
+        </div>
+        <div id="resetRequestStatus" class="status"></div>
+      </div>
+    </div>
+
   </div>
 
-  <div id="helpModal" class="modal hidden">
-    <div class="modal-box">
-      <h3>Richiesta aiuto</h3>
-      <p class="subtitle">Compila i campi e invia la richiesta all'amministratore.</p>
-
-      <div class="grid">
-        <div>
-          <label for="helpNome">Nome e cognome</label>
-          <input type="text" id="helpNome" placeholder="Nome e cognome" />
-        </div>
-
-        <div>
-          <label for="helpEmail">Email</label>
-          <input type="email" id="helpEmail" placeholder="Email account" />
-        </div>
-
-        <div>
-          <label for="helpNote">Note</label>
-          <textarea id="helpNote" placeholder="Descrivi il problema"></textarea>
-        </div>
-      </div>
-
-      <div class="actions" style="margin-top:14px;">
-        <button type="button" id="btnSendHelp" class="btn-green">Invia richiesta</button>
-        <button type="button" id="btnCloseHelp" class="btn-gray">Chiudi</button>
-      </div>
-
-      <div id="helpStatus" class="status"></div>
-    </div>
-  </div>
-
-  <div id="resetRequestModal" class="modal hidden">
-    <div class="modal-box">
-      <h3>Richiesta reset password</h3>
-      <p class="subtitle">Invia la richiesta all'amministratore.</p>
-
-      <div class="grid">
-        <div>
-          <label for="resetRequestEmail">Email</label>
-          <input type="email" id="resetRequestEmail" placeholder="Email account" />
-        </div>
-
-        <div>
-          <label for="resetRequestNote">Note</label>
-          <textarea id="resetRequestNote" placeholder="Note facoltative"></textarea>
-        </div>
-      </div>
-
-      <div class="actions" style="margin-top:14px;">
-        <button type="button" id="btnSendResetRequest" class="btn-orange">Invia richiesta</button>
-        <button type="button" id="btnCloseResetRequest" class="btn-gray">Chiudi</button>
-      </div>
-
-      <div id="resetRequestStatus" class="status"></div>
-    </div>
-  </div>
-
-  <script>
-    const registerFields = document.getElementById("registerFields")
-    const registerFields2 = document.getElementById("registerFields2")
-
-    const observer = new MutationObserver(() => {
-      const hidden = registerFields?.classList.contains("hidden")
-      if(registerFields2){
-        registerFields2.classList.toggle("hidden", hidden)
-      }
-    })
-
-    if(registerFields){
-      observer.observe(registerFields, { attributes:true, attributeFilter:["class"] })
-    }
-  </script>
-
-  <script src="./app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
