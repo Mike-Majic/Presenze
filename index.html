@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestione Presenze</title>
+  <title>Gestione Presenze V5</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -61,7 +61,10 @@
       <div class="topbar">
         <div class="pill" id="userInfo">Dipendente: -</div>
         <div class="pill" id="roleInfo">Ruolo: -</div>
+
         <div class="actions topbar-actions">
+          <button type="button" class="btn-blue" id="btnOpenLog">LOG</button>
+          <button type="button" class="btn-gray hidden" id="btnCloseLog">Chiudi log</button>
           <button type="button" class="btn-orange hidden" id="btnManageUsers">Gestione utenti</button>
           <button type="button" class="btn-red" id="btnLogout">Logout</button>
         </div>
@@ -208,6 +211,8 @@
 
         <div class="actions">
           <button type="button" class="btn-blue" id="btnRefreshSupport">Aggiorna richieste</button>
+          <button type="button" class="btn-green" id="btnOpenClosedRequests">Richieste Chiuse</button>
+          <button type="button" class="btn-gray hidden" id="btnBackToOpenRequests">Torna alle richieste aperte</button>
         </div>
 
         <div class="summary-grid">
@@ -220,14 +225,9 @@
             <div class="summary-label">Chiuse</div>
             <div class="summary-value" id="supportCountDone">0</div>
           </div>
-
-          <div class="summary-box">
-            <div class="summary-label">Archiviate</div>
-            <div class="summary-value" id="supportCountArchived">0</div>
-          </div>
         </div>
 
-        <div class="table-wrap" style="margin-top:16px;">
+        <div class="table-wrap" style="margin-top:16px;" id="openSupportWrap">
           <table>
             <thead>
               <tr>
@@ -245,10 +245,29 @@
             <tbody id="supportTable"></tbody>
           </table>
         </div>
+
+        <div class="table-wrap hidden" style="margin-top:16px;" id="closedSupportWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tipo</th>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Note</th>
+                <th>Origine</th>
+                <th>Data</th>
+                <th>Stato</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="supportClosedTable"></tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="card">
-        <h3>Presenze</h3>
+      <div class="card hidden" id="logCard">
+        <h3>Log Presenze</h3>
 
         <div class="table-wrap">
           <table>
