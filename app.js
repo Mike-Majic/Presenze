@@ -561,6 +561,7 @@ async function sendResetRequest(){
   }catch(err){
     console.error("RESET REQUEST ERROR", err)
     setModalStatus("resetRequestStatus", err?.message || "Errore invio richiesta reset password")
+    setAuthStatus(err?.message || "Errore invio richiesta reset password")
   }finally{
     resetRequestInCorso = false
     if(btn) btn.disabled = false
@@ -603,6 +604,7 @@ async function sendHelpRequest(){
   }catch(err){
     console.error("HELP REQUEST ERROR", err)
     setModalStatus("helpStatus", err?.message || "Errore invio richiesta aiuto")
+    setAuthStatus(err?.message || "Errore invio richiesta aiuto")
   }finally{
     helpRequestInCorso = false
     if(btn) btn.disabled = false
