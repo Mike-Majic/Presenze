@@ -418,6 +418,7 @@ async function login(){
     }
 
     setAuthStatus("")
+    await showApp(data.user)
   }catch(err){
     console.error("LOGIN ERROR", err)
     setAuthStatus("Errore login")
