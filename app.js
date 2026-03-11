@@ -325,19 +325,20 @@ async function showApp(user){
   showAppInCorso = true
   lastShownUserId = user.id
 
-  currentUser = user
-  isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
+  try{
+    currentUser = user
+    isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
-  const blocked = await checkBlockedStatus(user)
-  if(blocked){
-    await sb.auth.signOut()
-    currentUser = null
-    currentProfile = null
-    isAdmin = false
-    showLogin()
-    setAuthStatus("Il tuo account è stato bloccato dall'amministratore")
-    return
-  }
+    const blocked = await checkBlockedStatus(user)
+    if(blocked){
+      await sb.auth.signOut()
+      currentUser = null
+      currentProfile = null
+      isAdmin = false
+      showLogin()
+      setAuthStatus("Il tuo account è stato bloccato dall'amministratore")
+      return
+    }
 
   currentProfile = await ensureProfileFromMetadata(user)
 
