@@ -309,8 +309,18 @@ async function checkBlockedStatus(user){
 }
 
 async function showApp(user){
-  currentUser = user
-  isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
+  if(!user?.id) return
+
+  if(showAppInCorso && lastShownUserId === user.id){
+    return
+  }
+
+  showAppInCorso = true
+  lastShownUserId = user.id
+
+  try{
+    currentUser = user
+    isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
   const blocked = await checkBlockedStatus(user)
   if(blocked){
@@ -368,6 +378,9 @@ async function showApp(user){
 
   if(isAdmin){
     await loadSupportRequests()
+  }
+  }finally{
+    showAppInCorso = false
   }
 }
 
