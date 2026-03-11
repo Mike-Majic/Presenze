@@ -460,7 +460,6 @@ async function login(){
       return
     }
 
-    await showApp(user)
     setAuthStatus("")
   }catch(err){
     console.error("LOGIN ERROR", err)
