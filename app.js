@@ -3,7 +3,13 @@ const SUPABASE_KEY = "sb_publishable_lwd5Lahd5CirK_RlQmhcBA_PTo6c14v"
 
 const ADMIN_EMAIL = "m.colurci@gmail.com"
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+})
 
 let currentUser = null
 let currentProfile = null
@@ -16,7 +22,8 @@ let registerInCorso = false
 let helpRequestInCorso = false
 let resetRequestInCorso = false
 let supportRequests = []
-
+let showAppInCorso = false
+let lastShownUserId = null
 function qs(id){
   return document.getElementById(id)
 }
@@ -309,6 +316,15 @@ async function checkBlockedStatus(user){
 }
 
 async function showApp(user){
+  if(!user?.id) return
+
+  if(showAppInCorso && lastShownUserId === user.id){
+    return
+  }
+
+  showAppInCorso = true
+  lastShownUserId = user.id
+
   currentUser = user
   isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
@@ -369,6 +385,9 @@ async function showApp(user){
   if(isAdmin){
     await loadSupportRequests()
   }
+  } finally {
+    showAppInCorso = false
+  }
 }
 
 async function login(){
@@ -417,8 +436,15 @@ async function login(){
       return
     }
 
+    const user = data?.session?.user || data?.user
+
+    if(!user){
+      setAuthStatus("Login riuscito ma sessione non disponibile .. riprova")
+      return
+    }
+
+    await showApp(user)
     setAuthStatus("")
-    await showApp(data.user)
   }catch(err){
     console.error("LOGIN ERROR", err)
     setAuthStatus("Errore login")
@@ -1168,10 +1194,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 })
 
-sb.auth.onAuthStateChange(async (_event, session) => {
-  if(session?.user){
-    await showApp(session.user)
-  }else{
-    showLogin()
-  }
-})
+sb.auth.onAuthStateChange(async (event, session) => {
+  if(event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED"){
+    if(session?.user){
+      await showApp(session.user)
+    }
+    return
+ 
