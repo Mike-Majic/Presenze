@@ -3,13 +3,7 @@ const SUPABASE_KEY = "sb_publishable_lwd5Lahd5CirK_RlQmhcBA_PTo6c14v"
 
 const ADMIN_EMAIL = "m.colurci@gmail.com"
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
-  }
-})
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 let currentUser = null
 let currentProfile = null
@@ -22,8 +16,6 @@ let registerInCorso = false
 let helpRequestInCorso = false
 let resetRequestInCorso = false
 let supportRequests = []
-let showAppInCorso = false
-let lastShownUserId = null
 
 function qs(id){
   return document.getElementById(id)
@@ -59,8 +51,13 @@ async function invokeEdgeFunction(functionName, payload){
     body: payload
   })
 
-  if(error) throw error
-  if(data?.error) throw new Error(data.error)
+  if(error){
+    throw error
+  }
+
+  if(data?.error){
+    throw new Error(data.error)
+  }
 
   return data || {}
 }
@@ -230,9 +227,6 @@ function showLogin(){
   if(loginBox) loginBox.classList.remove("hidden")
   if(app) app.classList.add("hidden")
 
-  showAppInCorso = false
-  lastShownUserId = null
-
   hideRegisterMode()
 }
 
@@ -315,95 +309,65 @@ async function checkBlockedStatus(user){
 }
 
 async function showApp(user){
-  console.log("SHOW APP START", user)
+  currentUser = user
+  isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
-  if(!user?.id) return
-
-  if(showAppInCorso && lastShownUserId === user.id){
-    console.log("SHOW APP BLOCCATA PER DOPPIO AVVIO")
+  const blocked = await checkBlockedStatus(user)
+  if(blocked){
+    await sb.auth.signOut()
+    currentUser = null
+    currentProfile = null
+    isAdmin = false
+    showLogin()
+    setAuthStatus("Il tuo account è stato bloccato dall'amministratore")
     return
   }
 
-  showAppInCorso = true
-  lastShownUserId = user.id
+  currentProfile = await ensureProfileFromMetadata(user)
 
-  try{
-    currentUser = user
-    isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
-    console.log("SHOW APP STEP 1 OK", { email: user.email, isAdmin })
+  const loginBox = qs("loginBox")
+  const app = qs("app")
+  const userInfo = qs("userInfo")
+  const roleInfo = qs("roleInfo")
+  const adminFilterWrap = qs("adminFilterWrap")
+  const btnManageUsers = qs("btnManageUsers")
+  const adminSupportCard = qs("adminSupportCard")
 
-    const blocked = await checkBlockedStatus(user)
-    console.log("SHOW APP STEP 2 BLOCK CHECK", blocked)
+  if(loginBox) loginBox.classList.add("hidden")
+  if(app) app.classList.remove("hidden")
 
-    if(blocked){
-      await sb.auth.signOut()
-      currentUser = null
-      currentProfile = null
-      isAdmin = false
-      showLogin()
-      setAuthStatus("Il tuo account è stato bloccato dall'amministratore")
-      return
-    }
+  if(userInfo){
+    userInfo.textContent = `Dipendente: ${getDisplayName(currentProfile, user.email || "")}`
+  }
 
-    currentProfile = await ensureProfileFromMetadata(user)
-    console.log("SHOW APP STEP 3 PROFILE", currentProfile)
+  if(roleInfo){
+    roleInfo.innerHTML = isAdmin
+      ? 'Ruolo: <span class="role-admin">ADMIN</span>'
+      : 'Ruolo: <span class="role-user">UTENTE</span>'
+  }
 
-    const loginBox = qs("loginBox")
-    const app = qs("app")
-    const userInfo = qs("userInfo")
-    const roleInfo = qs("roleInfo")
-    const adminFilterWrap = qs("adminFilterWrap")
-    const btnManageUsers = qs("btnManageUsers")
-    const adminSupportCard = qs("adminSupportCard")
+  if(adminFilterWrap){
+    adminFilterWrap.classList.toggle("hidden", !isAdmin)
+  }
 
-    if(loginBox) loginBox.classList.add("hidden")
-    if(app) app.classList.remove("hidden")
-    console.log("SHOW APP STEP 4 UI OK")
+  if(btnManageUsers){
+    btnManageUsers.classList.toggle("hidden", !isAdmin)
+  }
 
-    if(userInfo){
-      userInfo.textContent = `Dipendente: ${getDisplayName(currentProfile, user.email || "")}`
-    }
+  if(adminSupportCard){
+    adminSupportCard.classList.toggle("hidden", !isAdmin)
+  }
 
-    if(roleInfo){
-      roleInfo.innerHTML = isAdmin
-        ? 'Ruolo: <span class="role-admin">ADMIN</span>'
-        : 'Ruolo: <span class="role-user">UTENTE</span>'
-    }
+  clearForm()
 
-    if(adminFilterWrap){
-      adminFilterWrap.classList.toggle("hidden", !isAdmin)
-    }
+  if(qs("filterMonth") && !qs("filterMonth").value){
+    qs("filterMonth").value = currentMonthValue()
+  }
 
-    if(btnManageUsers){
-      btnManageUsers.classList.toggle("hidden", !isAdmin)
-    }
+  await loadPresenze()
 
-    if(adminSupportCard){
-      adminSupportCard.classList.toggle("hidden", !isAdmin)
-    }
-
-    clearForm()
-    console.log("SHOW APP STEP 5 CLEAR FORM OK")
-
-    if(qs("filterMonth") && !qs("filterMonth").value){
-      qs("filterMonth").value = currentMonthValue()
-    }
-
-    await loadPresenze()
-    console.log("SHOW APP STEP 6 LOAD PRESENZE OK")
-
-    if(isAdmin){
-      await loadSupportRequests()
-      console.log("SHOW APP STEP 7 SUPPORT OK")
-    }
-
-    console.log("SHOW APP FINE OK")
-  }catch(err){
-    console.error("SHOW APP ERROR", err)
-    setAuthStatus("Errore nel caricamento dell'app")
-    showLogin()
-  }finally{
-    showAppInCorso = false
+  if(isAdmin){
+    await loadSupportRequests()
   }
 }
 
@@ -453,14 +417,8 @@ async function login(){
       return
     }
 
-    const user = data?.session?.user || data?.user
-
-    if(!user){
-      setAuthStatus("Login riuscito ma sessione non disponibile .. riprova")
-      return
-    }
-
     setAuthStatus("")
+    await showApp(data.user)
   }catch(err){
     console.error("LOGIN ERROR", err)
     setAuthStatus("Errore login")
@@ -560,16 +518,28 @@ async function sendResetRequest(){
     if(btn) btn.disabled = true
     setModalStatus("resetRequestStatus", "Invio richiesta in corso ..")
 
-    await invokeEdgeFunction("reset-request", {
+    const result = await invokeEdgeFunction("reset-request", {
       email,
-      note
+      note,
+      source: "login"
     })
 
-    setModalStatus("resetRequestStatus", "Richiesta inviata .. verrai ricontattato appena possibile.")
-    if(qs("resetRequestNote")) qs("resetRequestNote").value = ""
+    const remainingMs = Number(result?.remaining_ms || 0)
+    if(remainingMs > 0){
+      setModalStatus("resetRequestStatus", `Richiesta già inviata .. riprova tra ${formatRemainingTime(remainingMs)}`)
+      return
+    }
+
+    setModalStatus("resetRequestStatus", "Richiesta inviata all'amministratore")
+    setAuthStatus("Richiesta reset password inviata all'amministratore")
+
+    setTimeout(() => {
+      closeResetRequestModal()
+      if(qs("resetRequestNote")) qs("resetRequestNote").value = ""
+    }, 500)
   }catch(err){
     console.error("RESET REQUEST ERROR", err)
-    setModalStatus("resetRequestStatus", "Errore invio richiesta: " + (err.message || "errore sconosciuto"))
+    setModalStatus("resetRequestStatus", err?.message || "Errore invio richiesta reset password")
   }finally{
     resetRequestInCorso = false
     if(btn) btn.disabled = false
@@ -579,17 +549,13 @@ async function sendResetRequest(){
 async function sendHelpRequest(){
   if(helpRequestInCorso) return
 
+  const nome = qs("helpNome")?.value.trim() || ""
   const email = qs("helpEmail")?.value.trim() || qs("email")?.value.trim() || ""
-  const note = qs("helpMessage")?.value.trim() || ""
+  const note = qs("helpNote")?.value.trim() || ""
   const btn = qs("btnSendHelp")
 
-  if(!email){
-    setModalStatus("helpStatus", "Inserisci la mail dell'account")
-    return
-  }
-
-  if(!note){
-    setModalStatus("helpStatus", "Scrivi il problema che stai riscontrando")
+  if(!nome || !email || !note){
+    setModalStatus("helpStatus", "Compila nome e cognome, mail e note")
     return
   }
 
@@ -599,127 +565,168 @@ async function sendHelpRequest(){
     setModalStatus("helpStatus", "Invio richiesta in corso ..")
 
     await invokeEdgeFunction("help-request", {
+      nome,
       email,
-      message: note
+      note,
+      source: "login"
     })
 
-    setModalStatus("helpStatus", "Richiesta inviata con successo")
-    if(qs("helpMessage")) qs("helpMessage").value = ""
+    setModalStatus("helpStatus", "Richiesta inviata all'amministratore")
+    setAuthStatus("Richiesta aiuto inviata all'amministratore")
+
+    setTimeout(() => {
+      closeHelpModal()
+      if(qs("helpNome")) qs("helpNome").value = ""
+      if(qs("helpNote")) qs("helpNote").value = ""
+    }, 500)
   }catch(err){
     console.error("HELP REQUEST ERROR", err)
-    setModalStatus("helpStatus", "Errore invio richiesta: " + (err.message || "errore sconosciuto"))
+    setModalStatus("helpStatus", err?.message || "Errore invio richiesta aiuto")
   }finally{
     helpRequestInCorso = false
     if(btn) btn.disabled = false
   }
 }
 
-async function loadSupportRequests(){
-  if(!isAdmin) return
-
+async function logout(){
   try{
-    const data = await apiFetch("/api/support-requests")
-    supportRequests = Array.isArray(data?.requests) ? data.requests : []
+    const { error } = await sb.auth.signOut({ scope: "local" })
+
+    if(error){
+      setAppStatus("Errore logout: " + error.message)
+      return
+    }
+
+    currentUser = null
+    currentProfile = null
+    isAdmin = false
+    presenze = []
+    supportRequests = []
+    editingId = null
+
+    renderTable([])
     renderSupportRequests()
+    updateSupportSummary()
+    clearForm()
+    showLogin()
+    setAuthStatus("Logout effettuato")
   }catch(err){
-    console.error("LOAD SUPPORT REQUESTS ERROR", err)
-    setAppStatus("Errore caricamento richieste supporto")
+    console.error("LOGOUT ERROR", err)
+    setAppStatus("Errore logout")
   }
 }
 
-function renderSupportRequests(){
-  const tbody = qs("supportTableBody")
-  if(!tbody) return
-
-  tbody.innerHTML = ""
-
-  if(!supportRequests.length){
-    tbody.innerHTML = `<tr><td colspan="7">Nessuna richiesta</td></tr>`
-    return
-  }
-
-  supportRequests.forEach(item => {
-    const tr = document.createElement("tr")
-    const statusBadge = item.status === "done"
-      ? '<span class="status done">Completata</span>'
-      : item.status === "in_progress"
-        ? '<span class="status pending">In lavorazione</span>'
-        : '<span class="status assente">Aperta</span>'
-
-    tr.innerHTML = `
-      <td>${supportTypeLabel(item.type)}</td>
-      <td>${item.email || "-"}</td>
-      <td>${item.message || item.note || "-"}</td>
-      <td>${statusBadge}</td>
-      <td>${formatDateTime(item.created_at)}</td>
-      <td>${item.handled_by || "-"}</td>
-      <td>
-        <div class="actions">
-          <button class="btn secondary" onclick="updateSupportRequest('${item.id}','in_progress')">In lavorazione</button>
-          <button class="btn success" onclick="updateSupportRequest('${item.id}','done')">Chiudi</button>
-        </div>
-      </td>
-    `
-    tbody.appendChild(tr)
-  })
-}
-
-async function updateSupportRequest(id, status){
-  if(!isAdmin) return
-
+async function savePresenza(){
   try{
-    await apiFetch(`/api/support-requests/${id}`, {
-      method: "PATCH",
-      body: { status }
-    })
+    if(!currentUser){
+      setAppStatus("Utente non autenticato")
+      return
+    }
 
-    await loadSupportRequests()
-    setAppStatus("Richiesta aggiornata")
+    const nome = qs("nome")?.value.trim() || getDisplayName(currentProfile, "")
+    const data = qs("data")?.value || ""
+    const stato = qs("stato")?.value || ""
+    const ore = Number(qs("ore")?.value || 0)
+    const sede = qs("sede")?.value || "Sielte Pomezia"
+    const note = qs("note")?.value.trim() || ""
+
+    if(!nome || !data || !stato){
+      setAppStatus("Compila almeno nome, data e stato")
+      return
+    }
+
+    let result
+
+    if(editingId){
+      result = await sb
+        .from("presenze")
+        .update({
+          nome,
+          data,
+          stato,
+          ore,
+          sede,
+          note
+        })
+        .eq("id", editingId)
+        .select()
+    }else{
+      result = await sb
+        .from("presenze")
+        .insert([{
+          user_id: currentUser.id,
+          email: currentUser.email,
+          nome,
+          data,
+          stato,
+          ore,
+          sede,
+          note
+        }])
+        .select()
+    }
+
+    if(result.error){
+      setAppStatus("Errore salvataggio: " + result.error.message)
+      return
+    }
+
+    editingId = null
+    clearForm()
+    await loadPresenze()
+    setAppStatus("Presenza salvata")
   }catch(err){
-    console.error("UPDATE SUPPORT REQUEST ERROR", err)
-    setAppStatus("Errore aggiornamento richiesta")
+    console.error("SAVE ERROR", err)
+    setAppStatus("Errore salvataggio")
   }
 }
 
-function clearForm(){
-  if(qs("nome")) qs("nome").value = currentProfile ? getDisplayName(currentProfile, currentUser?.email || "") : ""
-  if(qs("data")) qs("data").value = todayISO()
-  if(qs("stato")) qs("stato").value = "Presente"
-  if(qs("ore")) qs("ore").value = ""
-  if(qs("sede")) qs("sede").value = ""
-  if(qs("note")) qs("note").value = ""
-  editingId = null
-  if(qs("saveBtn")) qs("saveBtn").textContent = "Salva presenza"
-  if(qs("cancelEditBtn")) qs("cancelEditBtn").classList.add("hidden")
+async function deletePresenza(id){
+  try{
+    const { error } = await sb
+      .from("presenze")
+      .delete()
+      .eq("id", id)
+
+    if(error){
+      setAppStatus("Errore eliminazione: " + error.message)
+      return
+    }
+
+    await loadPresenze()
+    setAppStatus("Presenza eliminata")
+  }catch(err){
+    console.error("DELETE ERROR", err)
+    setAppStatus("Errore eliminazione")
+  }
 }
 
 async function loadPresenze(){
-  console.log("LOAD PRESENZE START")
-  setAppStatus("Caricamento in corso ..")
+  try{
+    const { data, error } = await sb
+      .from("presenze")
+      .select("*")
+      .order("data", { ascending: false })
 
-  let query = sb
-    .from("presenze")
-    .select("*")
-    .order("data", { ascending: false })
-    .order("created_at", { ascending: false })
+    if(error){
+      presenze = []
+      renderTable([])
+      updateSummary([])
+      fillEmployeeFilter([])
+      setAppStatus("Errore caricamento presenze: " + error.message)
+      return
+    }
 
-  if(!isAdmin && currentUser?.email){
-    query = query.eq("email", currentUser.email)
+    presenze = data || []
+    fillEmployeeFilter(presenze)
+    applyFilters()
+  }catch(err){
+    console.error("LOAD ERROR", err)
+    presenze = []
+    renderTable([])
+    updateSummary([])
+    setAppStatus("Errore caricamento presenze")
   }
-
-  const { data, error } = await query
-  console.log("LOAD PRESENZE RESULT", { data, error })
-
-  if(error){
-    console.error("LOAD PRESENZE ERROR", error)
-    setAppStatus("Errore caricamento dati")
-    return
-  }
-
-  presenze = data || []
-  renderTable(getFilteredPresenze())
-  populateEmployeeFilter()
-  setAppStatus("")
 }
 
 function getFilteredPresenze(){
@@ -729,67 +736,27 @@ function getFilteredPresenze(){
   const employee = qs("filterEmployee")?.value || ""
 
   return presenze.filter(r => {
-    if(month && !String(r.data || "").startsWith(month)) return false
-    if(state && (r.stato || "") !== state) return false
-    if(employee && (r.email || "") !== employee) return false
+    const rowMonth = String(r.data || "").slice(0, 7)
+    const rowState = r.stato || ""
+    const rowName = (r.nome || "").toLowerCase()
 
-    if(name){
-      const target = `${r.nome || ""} ${r.email || ""}`.toLowerCase()
-      if(!target.includes(name)) return false
+    if(month && rowMonth !== month) return false
+    if(state && rowState !== state) return false
+    if(name && !rowName.includes(name)) return false
+    if(employee && (r.nome || "") !== employee) return false
+
+    if(!isAdmin && currentUser?.email && r.email !== currentUser.email){
+      return false
     }
 
     return true
   })
 }
 
-function populateEmployeeFilter(){
-  const select = qs("filterEmployee")
-  if(!select) return
-
-  const currentValue = select.value || ""
-  const employees = [...new Set(
-    presenze
-      .map(r => ({ email: r.email || "", nome: r.nome || r.email || "" }))
-      .filter(r => r.email)
-      .map(r => JSON.stringify(r))
-  )]
-    .map(item => JSON.parse(item))
-    .sort((a, b) => a.nome.localeCompare(b.nome, "it"))
-
-  select.innerHTML = `<option value="">Tutti i dipendenti</option>`
-
-  employees.forEach(item => {
-    const option = document.createElement("option")
-    option.value = item.email
-    option.textContent = item.nome
-    select.appendChild(option)
-  })
-
-  if([...select.options].some(opt => opt.value === currentValue)){
-    select.value = currentValue
-  }
-}
-
 function applyFilters(){
   const rows = getFilteredPresenze()
   renderTable(rows)
   updateSummary(rows)
-}
-
-function updateSummary(rows){
-  const totalRecords = rows.length
-  const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
-  const presenti = rows.filter(r => r.stato === "Presente").length
-  const ferie = rows.filter(r => r.stato === "Ferie").length
-  const permessi = rows.filter(r => r.stato === "Permesso").length
-  const assenti = rows.filter(r => r.stato !== "Presente").length
-
-  if(qs("totalRecords")) qs("totalRecords").textContent = totalRecords
-  if(qs("totalOre")) qs("totalOre").textContent = totalOre.toFixed(1)
-  if(qs("totalPresenti")) qs("totalPresenti").textContent = presenti
-  if(qs("totalFerie")) qs("totalFerie").textContent = ferie
-  if(qs("totalPermessi")) qs("totalPermessi").textContent = permessi
-  if(qs("totalAssenti")) qs("totalAssenti").textContent = assenti
 }
 
 function renderTable(rows){
@@ -800,123 +767,129 @@ function renderTable(rows){
 
   if(!rows.length){
     tabella.innerHTML = `<tr><td colspan="7">Nessuna presenza</td></tr>`
-    updateSummary(rows)
     return
   }
 
   rows.forEach(r => {
+    const safeId = String(r.id)
+
+    tabella.innerHTML += `
+      <tr>
+        <td data-label="Nome">${r.nome || ""}</td>
+        <td data-label="Data">${formatDate(r.data || "")}</td>
+        <td data-label="Stato">${r.stato || ""}</td>
+        <td data-label="Ore">${r.ore ?? 0}</td>
+        <td data-label="Sede">${r.sede || ""}</td>
+        <td data-label="Note">${r.note || ""}</td>
+        <td data-label="Azioni">
+          <div class="table-buttons">
+            <button type="button" class="btn-blue" onclick="editPresenza('${safeId}')">Modifica</button>
+            <button type="button" class="btn-red" onclick="deletePresenza('${safeId}')">Elimina</button>
+          </div>
+        </td>
+      </tr>
+    `
+  })
+}
+
+function renderSupportRequests(){
+  const tbody = qs("supportTable")
+  if(!tbody) return
+
+  tbody.innerHTML = ""
+
+  if(!supportRequests.length){
+    tbody.innerHTML = `<tr><td colspan="9">Nessuna richiesta supporto</td></tr>`
+    return
+  }
+
+  supportRequests.forEach(r => {
     const tr = document.createElement("tr")
 
     tr.innerHTML = `
-      <td>${formatDate(r.data)}</td>
-      <td>${r.nome || ""}</td>
-      <td><span class="status ${getStatusClass(r.stato)}">${r.stato || ""}</span></td>
-      <td>${Number(r.ore || 0).toFixed(1)}</td>
-      <td>${r.sede || ""}</td>
-      <td>${r.note || ""}</td>
-      <td class="actions">
-        <button class="btn secondary" onclick="editPresenza('${r.id}')">Modifica</button>
-        <button class="btn danger" onclick="deletePresenza('${r.id}')">Elimina</button>
+      <td data-label="ID">${r.id}</td>
+      <td data-label="Tipo">${supportTypeLabel(r.request_type)}</td>
+      <td data-label="Nome">${r.nome || "-"}</td>
+      <td data-label="Email">${r.email || "-"}</td>
+      <td data-label="Note">${r.note || "-"}</td>
+      <td data-label="Origine">${r.source || "-"}</td>
+      <td data-label="Data">${formatDateTime(r.created_at)}</td>
+      <td data-label="Stato">${r.status || "-"}</td>
+      <td data-label="Azioni">
+        <div class="table-buttons" id="support-actions-${r.id}"></div>
       </td>
     `
 
-    tabella.appendChild(tr)
+    tbody.appendChild(tr)
+
+    const wrap = qs(`support-actions-${r.id}`)
+    if(!wrap) return
+
+    const btnDone = document.createElement("button")
+    btnDone.type = "button"
+    btnDone.className = "btn-green"
+    btnDone.textContent = "Chiudi"
+    btnDone.onclick = () => updateSupportStatus(r.id, "done")
+
+    const btnArchive = document.createElement("button")
+    btnArchive.type = "button"
+    btnArchive.className = "btn-gray"
+    btnArchive.textContent = "Archivia"
+    btnArchive.onclick = () => updateSupportStatus(r.id, "archived")
+
+    const btnNew = document.createElement("button")
+    btnNew.type = "button"
+    btnNew.className = "btn-blue"
+    btnNew.textContent = "Riapri"
+    btnNew.onclick = () => updateSupportStatus(r.id, "new")
+
+    wrap.appendChild(btnDone)
+    wrap.appendChild(btnArchive)
+    wrap.appendChild(btnNew)
+
+    if(r.request_type === "reset_password"){
+      const btnDirectReset = document.createElement("button")
+      btnDirectReset.type = "button"
+      btnDirectReset.className = "btn-orange"
+      btnDirectReset.textContent = "Invia reset diretto"
+      btnDirectReset.onclick = () => adminDirectReset(r.email, r.id)
+      wrap.appendChild(btnDirectReset)
+    }
   })
-
-  updateSummary(rows)
-}
-
-function getStatusClass(stato){
-  if(stato === "Presente") return "presente"
-  if(stato === "Ferie") return "ferie"
-  if(stato === "Permesso") return "permesso"
-  return "assente"
-}
-
-async function savePresenza(){
-  if(!currentUser) return
-
-  const nome = qs("nome")?.value.trim() || getDisplayName(currentProfile, currentUser.email || "")
-  const data = qs("data")?.value || ""
-  const stato = qs("stato")?.value || "Presente"
-  const ore = Number(qs("ore")?.value || 0)
-  const sede = qs("sede")?.value.trim() || ""
-  const note = qs("note")?.value.trim() || ""
-
-  if(!nome || !data){
-    setAppStatus("Compila almeno nome e data")
-    return
-  }
-
-  const payload = {
-    nome,
-    data,
-    stato,
-    ore,
-    sede,
-    note,
-    email: currentUser.email
-  }
-
-  let query = sb.from("presenze")
-
-  if(editingId){
-    query = query.update(payload).eq("id", editingId)
-  }else{
-    query = query.insert(payload)
-  }
-
-  const { error } = await query
-
-  if(error){
-    console.error("SAVE PRESENZA ERROR", error)
-    setAppStatus("Errore salvataggio presenza")
-    return
-  }
-
-  setAppStatus(editingId ? "Presenza aggiornata" : "Presenza salvata")
-  clearForm()
-  await loadPresenze()
 }
 
 function editPresenza(id){
-  const row = presenze.find(item => item.id === id)
-  if(!row) return
+  const r = presenze.find(x => String(x.id) === String(id))
+  if(!r) return
 
   editingId = id
 
-  if(qs("nome")) qs("nome").value = row.nome || ""
-  if(qs("data")) qs("data").value = row.data || ""
-  if(qs("stato")) qs("stato").value = row.stato || "Presente"
-  if(qs("ore")) qs("ore").value = row.ore ?? ""
-  if(qs("sede")) qs("sede").value = row.sede || ""
-  if(qs("note")) qs("note").value = row.note || ""
+  if(qs("nome")) qs("nome").value = r.nome || ""
+  if(qs("data")) qs("data").value = r.data || ""
+  if(qs("stato")) qs("stato").value = r.stato || "Presente"
+  if(qs("ore")) qs("ore").value = r.ore ?? 0
+  if(qs("sede")) qs("sede").value = r.sede || "Sielte Pomezia"
+  if(qs("note")) qs("note").value = r.note || ""
 
-  if(qs("saveBtn")) qs("saveBtn").textContent = "Aggiorna presenza"
+  if(qs("formTitle")) qs("formTitle").textContent = "Modifica presenza"
   if(qs("cancelEditBtn")) qs("cancelEditBtn").classList.remove("hidden")
 }
 
 function cancelEdit(){
+  editingId = null
   clearForm()
-  setAppStatus("")
+
+  if(qs("formTitle")) qs("formTitle").textContent = "Inserisci presenza"
+  if(qs("cancelEditBtn")) qs("cancelEditBtn").classList.add("hidden")
 }
 
-async function deletePresenza(id){
-  if(!confirm("Vuoi eliminare questa presenza?")) return
-
-  const { error } = await sb
-    .from("presenze")
-    .delete()
-    .eq("id", id)
-
-  if(error){
-    console.error("DELETE PRESENZA ERROR", error)
-    setAppStatus("Errore eliminazione presenza")
-    return
-  }
-
-  setAppStatus("Presenza eliminata")
-  await loadPresenze()
+function clearForm(){
+  if(qs("nome")) qs("nome").value = getDisplayName(currentProfile, "")
+  if(qs("data")) qs("data").value = todayISO()
+  if(qs("stato")) qs("stato").value = "Presente"
+  if(qs("ore")) qs("ore").value = "0"
+  if(qs("sede")) qs("sede").value = "Sielte Pomezia"
+  if(qs("note")) qs("note").value = ""
 }
 
 function resetFilters(){
@@ -927,82 +900,168 @@ function resetFilters(){
   applyFilters()
 }
 
-function generateReport(){
+function fillEmployeeFilter(rows){
+  const select = qs("filterEmployee")
+  if(!select) return
+
+  const current = select.value
+  const names = [...new Set(rows.map(r => r.nome).filter(Boolean))].sort((a, b) => a.localeCompare(b, "it"))
+
+  select.innerHTML = `<option value="">Tutti</option>`
+
+  names.forEach(name => {
+    const opt = document.createElement("option")
+    opt.value = name
+    opt.textContent = name
+    select.appendChild(opt)
+  })
+
+  select.value = names.includes(current) ? current : ""
+}
+
+function updateSummary(rows){
+  const totalRecords = rows.length
+  const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
+  const presenti = rows.filter(r => r.stato === "Presente").length
+  const ferie = rows.filter(r => r.stato === "Ferie").length
+  const permessi = rows.filter(r => r.stato === "Permesso").length
+
+  const assenti = rows.filter(r =>
+    r.stato !== "Presente"
+  ).length
+
+  if(qs("sumRecord")) qs("sumRecord").textContent = String(totalRecords)
+  if(qs("sumOre")) qs("sumOre").textContent = String(totalOre)
+  if(qs("sumPresenti")) qs("sumPresenti").textContent = String(presenti)
+  if(qs("sumAssenti")) qs("sumAssenti").textContent = String(assenti)
+  if(qs("sumFerie")) qs("sumFerie").textContent = String(ferie)
+  if(qs("sumPermessi")) qs("sumPermessi").textContent = String(permessi)
+}
+
+function buildReportText(){
   const rows = getFilteredPresenze()
 
-  if(!rows.length){
-    setAppStatus("Nessun dato per generare il report")
-    return
-  }
+  const totale = rows.length
+  const ore = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
+  const presenti = rows.filter(r => r.stato === "Presente").length
+  const assenti = rows.filter(r => r.stato !== "Presente").length
+  const ferie = rows.filter(r => r.stato === "Ferie").length
+  const permessi = rows.filter(r => r.stato === "Permesso").length
 
-  const byEmployee = rows.reduce((acc, row) => {
-    const key = row.email || row.nome || "Sconosciuto"
-    if(!acc[key]){
-      acc[key] = {
-        nome: row.nome || row.email || "Sconosciuto",
-        email: row.email || "",
-        records: 0,
-        ore: 0,
-        presenti: 0,
-        ferie: 0,
-        permessi: 0,
-        assenze: 0
-      }
-    }
+  const mese = qs("filterMonth")?.value || "tutte"
+  const dipendente = qs("filterEmployee")?.value || "Tutti"
 
-    acc[key].records += 1
-    acc[key].ore += Number(row.ore || 0)
+  return [
+    `Report presenze`,
+    `Mese: ${mese}`,
+    `Dipendente: ${dipendente}`,
+    ``,
+    `Totale record: ${totale}`,
+    `Totale ore: ${ore}`,
+    `Presenti: ${presenti}`,
+    `Assenti: ${assenti}`,
+    `Ferie: ${ferie}`,
+    `Permessi: ${permessi}`
+  ].join("\n")
+}
 
-    if(row.stato === "Presente") acc[key].presenti += 1
-    else if(row.stato === "Ferie") acc[key].ferie += 1
-    else if(row.stato === "Permesso") acc[key].permessi += 1
-    else acc[key].assenze += 1
-
-    return acc
-  }, {})
-
-  const lines = Object.values(byEmployee)
-    .sort((a, b) => a.nome.localeCompare(b.nome, "it"))
-    .map(item =>
-      `${item.nome} (${item.email || "-"}) .. Giorni: ${item.records} .. Ore: ${item.ore.toFixed(1)} .. Presenti: ${item.presenti} .. Ferie: ${item.ferie} .. Permessi: ${item.permessi} .. Assenze: ${item.assenze}`
-    )
-
-  if(qs("reportOutput")) qs("reportOutput").value = lines.join("\n")
+function generateReport(){
+  const text = buildReportText()
+  if(qs("reportBox")) qs("reportBox").textContent = text
   setAppStatus("Report generato")
 }
 
 async function copyReport(){
-  const output = qs("reportOutput")?.value || ""
-  if(!output){
-    setAppStatus("Genera prima un report")
-    return
-  }
-
   try{
-    await navigator.clipboard.writeText(output)
+    const text = buildReportText()
+    await navigator.clipboard.writeText(text)
+    if(qs("reportBox")) qs("reportBox").textContent = text
     setAppStatus("Report copiato")
   }catch(err){
     console.error("COPY REPORT ERROR", err)
-    setAppStatus("Impossibile copiare il report")
+    setAppStatus("Errore copia report")
   }
 }
 
 function sendToBoss(){
-  const output = qs("reportOutput")?.value || ""
-  if(!output){
-    setAppStatus("Genera prima un report")
-    return
-  }
+  const text = buildReportText()
+  const subject = encodeURIComponent("Report presenze")
+  const body = encodeURIComponent(text)
+  window.location.href = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`
+}
 
-  const mailto = `mailto:${ADMIN_EMAIL}?subject=Report%20Presenze&body=${encodeURIComponent(output)}`
-  window.location.href = mailto
+function updateSupportSummary(){
+  const rows = supportRequests || []
+
+  const newCount = rows.filter(r => r.status === "new").length
+  const doneCount = rows.filter(r => r.status === "done").length
+  const archivedCount = rows.filter(r => r.status === "archived").length
+
+  if(qs("supportCountNew")) qs("supportCountNew").textContent = String(newCount)
+  if(qs("supportCountDone")) qs("supportCountDone").textContent = String(doneCount)
+  if(qs("supportCountArchived")) qs("supportCountArchived").textContent = String(archivedCount)
+  if(qs("supportBadgeNew")) qs("supportBadgeNew").textContent = String(newCount)
+}
+
+async function loadSupportRequests(){
+  if(!isAdmin) return
+
+  try{
+    const result = await apiFetch("/api/admin/support-list")
+    supportRequests = result.requests || []
+    renderSupportRequests()
+    updateSupportSummary()
+  }catch(err){
+    console.error("LOAD SUPPORT REQUESTS ERROR", err)
+    setAppStatus("Errore caricamento richieste supporto: " + err.message)
+  }
+}
+
+async function updateSupportStatus(id, status){
+  try{
+    await apiFetch("/api/admin/support-status", {
+      method: "POST",
+      body: { id, status }
+    })
+
+    await loadSupportRequests()
+    setAppStatus(`Richiesta ${id} aggiornata`)
+  }catch(err){
+    console.error("UPDATE SUPPORT STATUS ERROR", err)
+    setAppStatus("Errore aggiornamento richiesta: " + err.message)
+  }
+}
+
+async function adminDirectReset(email, requestId = null){
+  const ok = window.confirm(`Inviare la mail di reset password a ${email}?`)
+  if(!ok) return
+
+  try{
+    await apiFetch("/api/admin/reset-password", {
+      method: "POST",
+      body: { email }
+    })
+
+    if(requestId){
+      await apiFetch("/api/admin/support-status", {
+        method: "POST",
+        body: { id: requestId, status: "done" }
+      })
+    }
+
+    await loadSupportRequests()
+    setAppStatus("Mail reset password inviata")
+  }catch(err){
+    console.error("ADMIN DIRECT RESET ERROR", err)
+    setAppStatus("Errore invio reset diretto: " + err.message)
+  }
 }
 
 function exportCsv(){
   const rows = getFilteredPresenze()
 
   if(!rows.length){
-    setAppStatus("Nessun dato da esportare")
+    setAppStatus("Nessun dato")
     return
   }
 
@@ -1018,52 +1077,54 @@ function exportCsv(){
       r.sede || "",
       r.note || "",
       r.email || ""
-    ].map(value => `"${String(value).replaceAll('"','""')}"`)
+    ].map(value => `"${String(value).replaceAll('"', '""')}"`)
+
     csvRows.push(values.join(";"))
   })
 
   const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
+
   const a = document.createElement("a")
   a.href = url
   a.download = `presenze_${qs("filterMonth")?.value || "tutte"}.csv`
-  document.body.appendChild(a)
   a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
 
+  URL.revokeObjectURL(url)
   setAppStatus("CSV esportato")
 }
 
+function goManageUsers(){
+  window.location.href = "/users.html"
+}
+
 function bindEvents(){
-  if(qs("btnLogin")) qs("btnLogin").onclick = login
-  if(qs("btnRegisterMode")) qs("btnRegisterMode").onclick = showRegisterMode
-  if(qs("btnCancelRegister")) qs("btnCancelRegister").onclick = hideRegisterMode
-  if(qs("btnRegister")) qs("btnRegister").onclick = registerUser
-  if(qs("btnOpenHelp")) qs("btnOpenHelp").onclick = openHelpModal
+  if(qs("btnTogglePassword")) qs("btnTogglePassword").onclick = togglePasswordVisibility
+
+  if(qs("btnHelp")) qs("btnHelp").onclick = openHelpModal
   if(qs("btnCloseHelp")) qs("btnCloseHelp").onclick = closeHelpModal
   if(qs("btnSendHelp")) qs("btnSendHelp").onclick = sendHelpRequest
-  if(qs("btnOpenResetRequest")) qs("btnOpenResetRequest").onclick = openResetRequestModal
+
+  if(qs("btnRequestReset")) qs("btnRequestReset").onclick = openResetRequestModal
   if(qs("btnCloseResetRequest")) qs("btnCloseResetRequest").onclick = closeResetRequestModal
   if(qs("btnSendResetRequest")) qs("btnSendResetRequest").onclick = sendResetRequest
-  if(qs("btnTogglePassword")) qs("btnTogglePassword").onclick = togglePasswordVisibility
-  if(qs("btnLogout")) qs("btnLogout").onclick = async () => {
-    await sb.auth.signOut()
-    currentUser = null
-    currentProfile = null
-    isAdmin = false
-    showLogin()
-  }
 
-  if(qs("btnExportCsv")) qs("btnExportCsv").onclick = exportCsv
+  if(qs("btnLogin")) qs("btnLogin").onclick = login
+  if(qs("btnRegisterMode")) qs("btnRegisterMode").onclick = showRegisterMode
+  if(qs("btnRegister")) qs("btnRegister").onclick = registerUser
+  if(qs("btnCancelRegister")) qs("btnCancelRegister").onclick = hideRegisterMode
+
+  if(qs("btnLogout")) qs("btnLogout").onclick = logout
+  if(qs("btnManageUsers")) qs("btnManageUsers").onclick = goManageUsers
+
   if(qs("saveBtn")) qs("saveBtn").onclick = savePresenza
   if(qs("cancelEditBtn")) qs("cancelEditBtn").onclick = cancelEdit
 
-  if(qs("btnResetFilters")) qs("btnResetFilters").onclick = resetFilters
-  if(qs("btnGenerateReport")) qs("btnGenerateReport").onclick = generateReport
-  if(qs("btnCopyReport")) qs("btnCopyReport").onclick = copyReport
-  if(qs("btnSendToBoss")) qs("btnSendToBoss").onclick = sendToBoss
-  if(qs("btnRefreshSupport")) qs("btnRefreshSupport").onclick = loadSupportRequests
+if(qs("btnResetFilters")) qs("btnResetFilters").onclick = resetFilters
+if(qs("btnGenerateReport")) qs("btnGenerateReport").onclick = generateReport
+if(qs("btnCopyReport")) qs("btnCopyReport").onclick = copyReport
+if(qs("btnSendToBoss")) qs("btnSendToBoss").onclick = sendToBoss
+if(qs("btnRefreshSupport")) qs("btnRefreshSupport").onclick = loadSupportRequests
 
   if(qs("filterMonth")) qs("filterMonth").onchange = applyFilters
   if(qs("filterState")) qs("filterState").onchange = applyFilters
@@ -1087,7 +1148,6 @@ function bindEvents(){
 
 window.editPresenza = editPresenza
 window.deletePresenza = deletePresenza
-window.updateSupportRequest = updateSupportRequest
 
 window.addEventListener("DOMContentLoaded", async () => {
   bindEvents()
@@ -1108,17 +1168,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 })
 
-sb.auth.onAuthStateChange(async (event, session) => {
-  console.log("AUTH STATE CHANGE", event, session)
-
-  if(event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED"){
-    if(session?.user){
-      await showApp(session.user)
-    }
-    return
-  }
-
-  if(event === "SIGNED_OUT"){
+sb.auth.onAuthStateChange(async (_event, session) => {
+  if(session?.user){
+    await showApp(session.user)
+  }else{
     showLogin()
   }
 })
