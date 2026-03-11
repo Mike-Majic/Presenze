@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
       })
     }
 
-    if(!["new", "done", "archived"].includes(status)){
+    if(!["new", "done"].includes(status)){
       return sendJson(res, 400, {
         error: "status non valido",
         receivedStatus: rawStatus,
