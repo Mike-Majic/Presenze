@@ -353,6 +353,10 @@ td:last-child .btn-gray{
   color:#e5eef9;
 }
 
+#reportCard{
+  margin-top:16px;
+}
+
 .report-box{
   white-space:pre-wrap;
   max-height:320px;
@@ -566,65 +570,3 @@ button:disabled{
   margin:0;
 }
 
-.topbar-actions{
-  max-width:420px;
-  width:100%;
-}
-
-#logCard,
-#adminSupportCard,
-#reportCard{
-  scroll-margin-top:20px;
-}
-
-#openSupportWrap,
-#closedSupportWrap{
-  transition:opacity .18s ease;
-}
-
-#supportTable td:last-child,
-#supportClosedTable td:last-child,
-#tabella td:last-child{
-  width:1%;
-  white-space:nowrap;
-}
-
-#supportTable .table-buttons,
-#supportClosedTable .table-buttons,
-#tabella .table-buttons{
-  display:flex;
-  gap:6px;
-  justify-content:center;
-  align-items:center;
-  flex-wrap:wrap;
-}
-
-#supportTable .table-buttons button,
-#supportClosedTable .table-buttons button,
-#tabella .table-buttons button{
-  width:auto;
-  min-width:92px;
-  padding:7px 10px;
-  font-size:12px;
-  border-radius:10px;
-  flex:0 0 auto;
-}
-
-@media (max-width:700px){
-  .topbar-actions{
-    max-width:none;
-    width:100%;
-  }
-
-  #supportTable .table-buttons,
-  #supportClosedTable .table-buttons,
-  #tabella .table-buttons{
-    justify-content:flex-start;
-  }
-
-  #supportTable .table-buttons button,
-  #supportClosedTable .table-buttons button,
-  #tabella .table-buttons button{
-    min-width:78px;
-  }
-}
