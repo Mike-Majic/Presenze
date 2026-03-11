@@ -9,42 +9,64 @@ module.exports = async (req, res) => {
   if(!admin) return
 
   try{
-    const body = await readBody(req)
-    const id = body.id
-    const status = (body.status || "").trim()
+    const body = await readBody(req) || {}
+
+    const rawId = body.id
+    const rawStatus = body.status
+
+    const id = String(rawId ?? "").trim()
+    const status = String(rawStatus ?? "").trim().toLowerCase()
 
     if(!id){
-      return sendJson(res, 400, { error: "id mancante" })
+      return sendJson(res, 400, {
+        error: "id mancante",
+        received: body
+      })
     }
 
     if(!["new", "done", "archived"].includes(status)){
-      return sendJson(res, 400, { error: "status non valido" })
+      return sendJson(res, 400, {
+        error: "status non valido",
+        receivedStatus: rawStatus
+      })
     }
 
-    const response = await supabaseFetch(`/rest/v1/support_requests?id=eq.${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      headers: {
-        "Prefer": "return=representation"
-      },
-      body: {
-        status
+    const response = await supabaseFetch(
+      `/rest/v1/support_requests?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Prefer": "return=representation"
+        },
+        body: {
+          status
+        }
       }
-    })
+    )
 
     if(!response.ok){
+      console.error("SUPPORT STATUS SUPABASE ERROR", response.status, response.data)
+
       return sendJson(res, response.status, {
         error: "Errore aggiornamento stato richiesta",
-        details: response.data
+        details: response.data,
+        id,
+        status
       })
     }
 
     return sendJson(res, 200, {
       ok: true,
       id,
-      status
+      status,
+      updated: response.data || []
     })
   }catch(err){
     console.error("SUPPORT STATUS ERROR", err)
-    return sendJson(res, 500, { error: "Errore interno aggiornamento richiesta" })
+
+    return sendJson(res, 500, {
+      error: "Errore interno aggiornamento richiesta",
+      details: err?.message || String(err)
+    })
   }
 }
