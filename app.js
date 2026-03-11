@@ -59,13 +59,8 @@ async function invokeEdgeFunction(functionName, payload){
     body: payload
   })
 
-  if(error){
-    throw error
-  }
-
-  if(data?.error){
-    throw new Error(data.error)
-  }
+  if(error) throw error
+  if(data?.error) throw new Error(data.error)
 
   return data || {}
 }
@@ -320,9 +315,12 @@ async function checkBlockedStatus(user){
 }
 
 async function showApp(user){
+  console.log("SHOW APP START", user)
+
   if(!user?.id) return
 
   if(showAppInCorso && lastShownUserId === user.id){
+    console.log("SHOW APP BLOCCATA PER DOPPIO AVVIO")
     return
   }
 
@@ -332,8 +330,11 @@ async function showApp(user){
   try{
     currentUser = user
     isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase()
+    console.log("SHOW APP STEP 1 OK", { email: user.email, isAdmin })
 
     const blocked = await checkBlockedStatus(user)
+    console.log("SHOW APP STEP 2 BLOCK CHECK", blocked)
+
     if(blocked){
       await sb.auth.signOut()
       currentUser = null
@@ -345,6 +346,7 @@ async function showApp(user){
     }
 
     currentProfile = await ensureProfileFromMetadata(user)
+    console.log("SHOW APP STEP 3 PROFILE", currentProfile)
 
     const loginBox = qs("loginBox")
     const app = qs("app")
@@ -356,6 +358,7 @@ async function showApp(user){
 
     if(loginBox) loginBox.classList.add("hidden")
     if(app) app.classList.remove("hidden")
+    console.log("SHOW APP STEP 4 UI OK")
 
     if(userInfo){
       userInfo.textContent = `Dipendente: ${getDisplayName(currentProfile, user.email || "")}`
@@ -380,16 +383,21 @@ async function showApp(user){
     }
 
     clearForm()
+    console.log("SHOW APP STEP 5 CLEAR FORM OK")
 
     if(qs("filterMonth") && !qs("filterMonth").value){
       qs("filterMonth").value = currentMonthValue()
     }
 
     await loadPresenze()
+    console.log("SHOW APP STEP 6 LOAD PRESENZE OK")
 
     if(isAdmin){
       await loadSupportRequests()
+      console.log("SHOW APP STEP 7 SUPPORT OK")
     }
+
+    console.log("SHOW APP FINE OK")
   }catch(err){
     console.error("SHOW APP ERROR", err)
     setAuthStatus("Errore nel caricamento dell'app")
@@ -687,6 +695,7 @@ function clearForm(){
 }
 
 async function loadPresenze(){
+  console.log("LOAD PRESENZE START")
   setAppStatus("Caricamento in corso ..")
 
   let query = sb
@@ -700,6 +709,7 @@ async function loadPresenze(){
   }
 
   const { data, error } = await query
+  console.log("LOAD PRESENZE RESULT", { data, error })
 
   if(error){
     console.error("LOAD PRESENZE ERROR", error)
@@ -773,10 +783,7 @@ function updateSummary(rows){
   const presenti = rows.filter(r => r.stato === "Presente").length
   const ferie = rows.filter(r => r.stato === "Ferie").length
   const permessi = rows.filter(r => r.stato === "Permesso").length
-
-  const assenti = rows.filter(r =>
-    r.stato !== "Presente"
-  ).length
+  const assenti = rows.filter(r => r.stato !== "Presente").length
 
   if(qs("totalRecords")) qs("totalRecords").textContent = totalRecords
   if(qs("totalOre")) qs("totalOre").textContent = totalOre.toFixed(1)
@@ -1103,6 +1110,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 })
 
 sb.auth.onAuthStateChange(async (event, session) => {
+  console.log("AUTH STATE CHANGE", event, session)
+
   if(event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED"){
     if(session?.user){
       await showApp(session.user)
