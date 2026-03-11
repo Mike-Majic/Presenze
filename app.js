@@ -1292,3 +1292,30 @@ sb.auth.onAuthStateChange(async (_event, session) => {
     showLogin()
   }
 })
+
+let deferredPrompt
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault()
+  deferredPrompt = e
+
+  const installBtn = document.createElement("button")
+  installBtn.textContent = "Installa App"
+  installBtn.className = "btn-green"
+
+  installBtn.onclick = async () => {
+    installBtn.remove()
+
+    deferredPrompt.prompt()
+
+    const { outcome } = await deferredPrompt.userChoice
+    console.log("Install result:", outcome)
+
+    deferredPrompt = null
+  }
+
+  const topbar = document.querySelector(".topbar")
+  if(topbar){
+    topbar.appendChild(installBtn)
+  }
+})
