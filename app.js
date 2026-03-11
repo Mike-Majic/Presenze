@@ -19,6 +19,9 @@ let supportRequests = []
 let showAppInCorso = false
 let authReady = false
 let showingClosedRequests = false
+let supportRealtimeChannel = null
+let lastSupportNotificationAt = 0
+let baseDocumentTitle = document.title
 
 function qs(id){
   return document.getElementById(id)
@@ -47,6 +50,127 @@ function formatRemainingTime(ms){
   if(hours <= 0) return `${minutes} minuti`
   if(minutes === 0) return `${hours} ore`
   return `${hours} ore e ${minutes} minuti`
+}
+
+function updateAdminPageTitle(){
+  const newCount = (supportRequests || []).filter(r => (r.status || "new") === "new").length
+
+  if(isAdmin && newCount > 0){
+    document.title = `(${newCount}) Gestione Presenze V5`
+  }else{
+    document.title = baseDocumentTitle
+  }
+}
+
+async function ensureNotificationPermission(){
+  if(!("Notification" in window)) return false
+  if(Notification.permission === "granted") return true
+  if(Notification.permission === "denied") return false
+
+  try{
+    const permission = await Notification.requestPermission()
+    return permission === "granted"
+  }catch(err){
+    console.error("NOTIFICATION PERMISSION ERROR", err)
+    return false
+  }
+}
+
+function playAdminNotificationSound(){
+  const audio = qs("adminNotificationSound")
+  if(!audio) return
+
+  try{
+    audio.currentTime = 0
+    audio.play().catch(err => {
+      console.warn("NOTIFICATION SOUND ERROR", err)
+    })
+  }catch(err){
+    console.warn("NOTIFICATION SOUND PLAY ERROR", err)
+  }
+}
+
+async function showAdminSupportNotification(row){
+  if(!isAdmin) return
+
+  const now = Date.now()
+  if(now - lastSupportNotificationAt < 1500){
+    return
+  }
+  lastSupportNotificationAt = now
+
+  playAdminNotificationSound()
+
+  const permissionGranted = await ensureNotificationPermission()
+
+  if(permissionGranted){
+    const tipo = supportTypeLabel(row?.request_type)
+    const nome = row?.nome || row?.email || "Richiesta supporto"
+
+    try{
+      const notification = new Notification("Nuova richiesta supporto", {
+        body: `${tipo} .. ${nome}`,
+        icon: "icon-512.png",
+        badge: "icon-512.png",
+        tag: `support-request-${row?.id || Date.now()}`
+      })
+
+      notification.onclick = () => {
+        window.focus()
+        openOpenRequestsView()
+      }
+    }catch(err){
+      console.error("BROWSER NOTIFICATION ERROR", err)
+    }
+  }
+}
+
+function stopSupportRealtime(){
+  if(supportRealtimeChannel){
+    try{
+      sb.removeChannel(supportRealtimeChannel)
+    }catch(err){
+      console.warn("REMOVE REALTIME CHANNEL ERROR", err)
+    }
+    supportRealtimeChannel = null
+  }
+}
+
+function startSupportRealtime(){
+  if(!isAdmin) return
+
+  stopSupportRealtime()
+
+  supportRealtimeChannel = sb
+    .channel("support-requests-admin")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "support_requests"
+      },
+      async (payload) => {
+        console.log("SUPPORT REQUEST INSERT REALTIME", payload)
+
+        await loadSupportRequests()
+        await showAdminSupportNotification(payload.new)
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "support_requests"
+      },
+      async () => {
+        await loadSupportRequests()
+      }
+    )
+    .subscribe((status) => {
+      console.log("SUPPORT REALTIME STATUS", status)
+    })
 }
 
 async function invokeEdgeFunction(functionName, payload){
@@ -1099,6 +1223,8 @@ function updateSupportSummary(){
   if(qs("supportCountNew")) qs("supportCountNew").textContent = String(newCount)
   if(qs("supportCountDone")) qs("supportCountDone").textContent = String(doneCount)
   if(qs("supportBadgeNew")) qs("supportBadgeNew").textContent = String(newCount)
+
+  updateAdminPageTitle()
 }
 
 async function loadSupportRequests(){
