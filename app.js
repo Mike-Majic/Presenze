@@ -1248,22 +1248,31 @@ function fillEmployeeFilter(rows){
 
 function updateSummary(rows){
   const totalRecords = rows.length
+
   const totalOre = rows.reduce((acc, r) => acc + Number(r.ore || 0), 0)
   const totalOreExtra = rows.reduce((acc, r) => acc + Number(r.ore_extra || 0), 0)
   const totalOreComplessive = totalOre + totalOreExtra
-  const presenti = rows.filter(r => r.stato === "Presente").length
+
+  const presenza = rows.filter(r => r.stato === "Presente").length
   const ferie = rows.filter(r => r.stato === "Ferie").length
   const permessi = rows.filter(r => r.stato === "Permesso").length
-  const assenti = rows.filter(r => r.stato !== "Presente").length
+  const malattia = rows.filter(r => r.stato === "Malattia").length
+  const lutto = rows.filter(r => r.stato === "Lutto").length
+  const maternita = rows.filter(r => r.stato === "Maternità").length
+  const legge104 = rows.filter(r => r.stato === "104").length
 
-  if(qs("sumRecord") ) qs("sumRecord").textContent = String(totalRecords)
+  if(qs("sumRecord")) qs("sumRecord").textContent = String(totalRecords)
   if(qs("sumOre")) qs("sumOre").textContent = String(totalOre)
   if(qs("sumOreExtra")) qs("sumOreExtra").textContent = String(totalOreExtra)
   if(qs("sumOreComplessive")) qs("sumOreComplessive").textContent = String(totalOreComplessive)
-  if(qs("sumPresenti")) qs("sumPresenti").textContent = String(presenti)
-  if(qs("sumAssenti")) qs("sumAssenti").textContent = String(assenti)
+
+  if(qs("sumPresenza")) qs("sumPresenza").textContent = String(presenza)
   if(qs("sumFerie")) qs("sumFerie").textContent = String(ferie)
   if(qs("sumPermessi")) qs("sumPermessi").textContent = String(permessi)
+  if(qs("sumMalattia")) qs("sumMalattia").textContent = String(malattia)
+  if(qs("sumLutto")) qs("sumLutto").textContent = String(lutto)
+  if(qs("sumMaternita")) qs("sumMaternita").textContent = String(maternita)
+  if(qs("sum104")) qs("sum104").textContent = String(legge104)
 }
 
 function buildReportText(includeZeroValues = false){
