@@ -117,6 +117,11 @@
           </div>
 
           <div>
+            <label>Ore Extra</label>
+            <input id="oreExtra" type="number" step="0.5" min="0" placeholder="0" value="0">
+          </div>
+
+          <div>
             <label>Sede</label>
             <select id="sede">
               <option value="Sielte Pomezia">Sielte Pomezia</option>
@@ -191,6 +196,11 @@
           <div class="summary-box">
             <div class="summary-label">Totale ore</div>
             <div class="summary-value" id="sumOre">0</div>
+          </div>
+
+          <div class="summary-box">
+            <div class="summary-label">Ore extra</div>
+            <div class="summary-value" id="sumOreExtra">0</div>
           </div>
 
           <div class="summary-box">
@@ -291,6 +301,7 @@
                 <th>Data</th>
                 <th>Stato</th>
                 <th>Ore</th>
+                <th>Ore Extra</th>
                 <th>Sede</th>
                 <th>Note</th>
                 <th>Azioni</th>
@@ -353,21 +364,21 @@
 
   </div>
 
-<audio id="adminNotificationSound" preload="auto">
-  <source src="notification.mp3" type="audio/mpeg">
-</audio>
+  <audio id="adminNotificationSound" preload="auto">
+    <source src="notification.mp3" type="audio/mpeg">
+  </audio>
 
-<script src="app.js"></script>
+  <script src="app.js"></script>
 
-<script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js")
-      .then(reg => console.log("Service Worker registrato", reg))
-      .catch(err => console.error("Errore Service Worker", err));
-  });
-}
-</script>
+  <script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js")
+        .then(reg => console.log("Service Worker registrato", reg))
+        .catch(err => console.error("Errore Service Worker", err));
+    });
+  }
+  </script>
 
 </body>
 </html>
