@@ -51,6 +51,27 @@ function setModalStatus(id, msg){
   if(el) el.textContent = msg || ""
 }
 
+async function checkSupabaseReachability(){
+  try{
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/settings`, {
+      headers: {
+        "apikey": SUPABASE_KEY
+      }
+    })
+
+    if(!response.ok){
+      setAuthStatus("Connessione Supabase non valida per questo progetto. Verifica URL/chiave del progetto Presenze.")
+      return false
+    }
+
+    return true
+  }catch(err){
+    console.error("SUPABASE REACHABILITY ERROR", err)
+    setAuthStatus("Impossibile raggiungere Supabase (rete/progetto errato). Controlla URL progetto Presenze, VPN/AdBlock e HTTPS.")
+    return false
+  }
+}
+
 function formatRemainingTime(ms){
   const totalMinutes = Math.ceil(ms / 60000)
   const hours = Math.floor(totalMinutes / 60)
@@ -580,7 +601,7 @@ async function showApp(user){
     if(app) app.classList.remove("hidden")
 
     if(userInfo){
-      userInfo.textContent = `Dipendente: ${getDisplayName(currentProfile, user.email || "")}`
+      userInfo.textContent = `Utente: ${getDisplayName(currentProfile, user.email || "")}`
     }
 
     if(roleInfo){
@@ -650,6 +671,15 @@ async function login(){
     if(error){
       const msg = (error.message || "").toLowerCase()
 
+      if(
+        msg.includes("failed to fetch") ||
+        msg.includes("fetch failed") ||
+        msg.includes("networkerror")
+      ){
+        setAuthStatus("Errore rete durante il login (Failed to fetch). Apri l'app da HTTPS, disattiva VPN/AdBlock e riprova. Se sei su rete aziendale/mobile prova un'altra rete.")
+        return
+      }
+
       if(msg.includes("invalid login credentials") && email === ADMIN_EMAIL.toLowerCase() && password === "Mike00"){
         try{
           setAuthStatus("Credenziali non valide: provo ripristino emergenza e nuovo accesso ..")
@@ -699,6 +729,15 @@ async function login(){
     setAuthStatus("")
   }catch(err){
     console.error("LOGIN ERROR", err)
+    const msg = String(err?.message || "").toLowerCase()
+    if(
+      msg.includes("failed to fetch") ||
+      msg.includes("fetch failed") ||
+      msg.includes("networkerror")
+    ){
+      setAuthStatus("Errore rete durante il login (Failed to fetch). Controlla connessione, VPN/AdBlock e riprova.")
+      return
+    }
     setAuthStatus("Errore login")
   }finally{
     loginInCorso = false
@@ -1730,6 +1769,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   openOpenRequestsView()
 
   if(qs("filterMonth")) qs("filterMonth").value = currentMonthValue()
+
+  await checkSupabaseReachability()
 
   try{
     const { data, error } = await sb.auth.getSession()
