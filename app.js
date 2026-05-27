@@ -598,7 +598,7 @@ async function login(){
   if(loginInCorso) return
 
   try{
-    const email = qs("email")?.value.trim() || ""
+    const email = (qs("email")?.value || "").trim().toLowerCase()
     const password = qs("password")?.value || ""
     const btn = qs("btnLogin")
 
@@ -622,7 +622,7 @@ async function login(){
       const msg = (error.message || "").toLowerCase()
 
       if(msg.includes("invalid login credentials")){
-        setAuthStatus("Email o password non corrette")
+        setAuthStatus("Email o password non corrette. Controlla maiuscole/minuscole, verifica l'email e se non ricordi la password usa “Richiedi reset password”.")
         return
       }
 
@@ -657,7 +657,7 @@ async function registerUser(){
   try{
     const nome = qs("nomeRegister")?.value.trim() || ""
     const cognome = qs("cognomeRegister")?.value.trim() || ""
-    const email = qs("email")?.value.trim() || ""
+    const email = (qs("email")?.value || "").trim().toLowerCase()
     const password = qs("password")?.value || ""
     const btn = qs("btnRegister")
 
