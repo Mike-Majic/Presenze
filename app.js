@@ -202,7 +202,19 @@ async function invokeEdgeFunction(functionName, payload){
       console.error(`EDGE FUNCTION RESPONSE READ ERROR [${functionName}]`, readErr)
     }
 
-    throw new Error(extra || error.message || `Errore funzione ${functionName}`)
+    const rawMessage = extra || error.message || `Errore funzione ${functionName}`
+    const normalized = String(rawMessage || "").toLowerCase()
+
+    if(
+      normalized.includes("failed to send a request to the edge function") ||
+      normalized.includes("fetch failed") ||
+      normalized.includes("networkerror") ||
+      normalized.includes("failed to fetch")
+    ){
+      throw new Error("Impossibile contattare il servizio richieste in questo momento. Controlla connessione/rete, disattiva eventuali blocchi (VPN/AdBlock) e riprova tra poco.")
+    }
+
+    throw new Error(rawMessage)
   }
 
   if(data?.error){
@@ -726,7 +738,7 @@ async function registerUser(){
 async function sendResetRequest(){
   if(resetRequestInCorso) return
 
-  const email = qs("resetRequestEmail")?.value.trim() || qs("email")?.value.trim() || ""
+  const email = (qs("resetRequestEmail")?.value || qs("email")?.value || "").trim().toLowerCase()
   const note = qs("resetRequestNote")?.value.trim() || ""
   const btn = qs("btnSendResetRequest")
 
