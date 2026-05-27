@@ -30,3 +30,13 @@ supabase secrets set SUPABASE_SERVICE_ROLE_KEY=LA_TUA_SERVICE_ROLE_KEY
 supabase secrets set RESEND_API_KEY=LA_TUA_RESEND_API_KEY
 supabase secrets set ADMIN_NOTIFY_EMAIL=m.colurci@gmail.com
 supabase secrets set APP_NAME="Gestione Presenze"
+```
+
+## Nota su più progetti Supabase
+
+Sì, puoi avere più progetti Supabase (es. Presenze e Magazzino), ma ogni app deve usare URL/chiavi del suo progetto.
+
+Checklist rapida se login/reset non funzionano:
+- In `app.js` e `users.js` verifica `SUPABASE_URL` e `SUPABASE_KEY` del progetto Presenze.
+- In hosting/API verifica `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` del progetto Presenze (non Magazzino).
+- Nelle Edge Functions (`reset-request`, `help-request`) verifica i secrets sul progetto Presenze.
