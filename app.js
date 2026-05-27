@@ -773,8 +773,24 @@ async function sendResetRequest(){
     }, 500)
   }catch(err){
     console.error("RESET REQUEST ERROR", err)
-    setModalStatus("resetRequestStatus", err?.message || "Errore invio richiesta reset password")
-    setAuthStatus(err?.message || "Errore invio richiesta reset password")
+    const fallbackMsg = err?.message || "Errore invio richiesta reset password"
+
+    try{
+      const { error: resetMailError } = await sb.auth.resetPasswordForEmail(email)
+
+      if(resetMailError){
+        throw resetMailError
+      }
+
+      setModalStatus("resetRequestStatus", "Servizio richieste non raggiungibile. Ti ho inviato il link ufficiale di reset via email: imposta la nuova password su Mike00.")
+      setAuthStatus("Link reset inviato via email. Imposta la nuova password su Mike00 e poi accedi.")
+      return
+    }catch(fallbackError){
+      console.error("RESET PASSWORD EMAIL FALLBACK ERROR", fallbackError)
+    }
+
+    setModalStatus("resetRequestStatus", fallbackMsg)
+    setAuthStatus(fallbackMsg)
   }finally{
     resetRequestInCorso = false
     if(btn) btn.disabled = false
