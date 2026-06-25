@@ -432,14 +432,26 @@ function openOpenRequestsView(){
 
 function openLogView(){
   if(qs("logCard")) qs("logCard").classList.remove("hidden")
-  if(qs("btnOpenLog")) qs("btnOpenLog").classList.add("hidden")
-  if(qs("btnCloseLog")) qs("btnCloseLog").classList.remove("hidden")
+
+  const btnOpenLog = qs("btnOpenLog")
+  if(btnOpenLog){
+    btnOpenLog.textContent = "Chiudi log"
+    btnOpenLog.classList.remove("btn-blue")
+    btnOpenLog.classList.add("btn-gray")
+    btnOpenLog.onclick = closeLogView
+  }
 }
 
 function closeLogView(){
   if(qs("logCard")) qs("logCard").classList.add("hidden")
-  if(qs("btnOpenLog")) qs("btnOpenLog").classList.remove("hidden")
-  if(qs("btnCloseLog")) qs("btnCloseLog").classList.add("hidden")
+
+  const btnOpenLog = qs("btnOpenLog")
+  if(btnOpenLog){
+    btnOpenLog.textContent = "LOG"
+    btnOpenLog.classList.remove("btn-gray")
+    btnOpenLog.classList.add("btn-blue")
+    btnOpenLog.onclick = openLogView
+  }
 }
 
 function todayISO(){
@@ -1776,7 +1788,6 @@ function bindEvents(){
   if(qs("btnOpenClosedRequests")) qs("btnOpenClosedRequests").onclick = openClosedRequestsView
   if(qs("btnBackToOpenRequests")) qs("btnBackToOpenRequests").onclick = openOpenRequestsView
   if(qs("btnOpenLog")) qs("btnOpenLog").onclick = openLogView
-  if(qs("btnCloseLog")) qs("btnCloseLog").onclick = closeLogView
 
   if(qs("saveBtn")) qs("saveBtn").onclick = savePresenza
   if(qs("cancelEditBtn")) qs("cancelEditBtn").onclick = cancelEdit
