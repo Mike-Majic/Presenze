@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Sedi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>GESTIONE SEDI</header>
+
+  <div class="container">
+    <div class="card">
+      <div class="topbar">
+        <div class="pill">Sedi disponibili</div>
+        <div class="actions topbar-actions">
+          <button type="button" class="btn-blue" id="btnBackDashboard">Torna alla dashboard</button>
+        </div>
+      </div>
+
+      <h3 id="sedeFormTitle">Aggiungi sede</h3>
+      <div class="form-grid">
+        <div class="span-2">
+          <label>Nome sede</label>
+          <input id="sedeName" type="text" placeholder="Es. Sielte Pomezia">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn-green" id="btnSaveSede">Salva sede</button>
+        <button type="button" class="btn-gray hidden" id="btnCancelSedeEdit">Annulla modifica</button>
+      </div>
+
+      <div id="sedeStatus" class="status"></div>
+
+      <div class="table-wrap" style="margin-top:16px;">
+        <table class="sedi-table">
+          <thead>
+            <tr>
+              <th>Sede</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="sediTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="sede.js"></script>
+</body>
+</html>
