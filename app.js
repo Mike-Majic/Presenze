@@ -23,6 +23,46 @@ let supportRealtimeChannel = null
 let lastSupportNotificationAt = 0
 let baseDocumentTitle = document.title
 
+const DEFAULT_SEDI = ["Sielte Pomezia", "Sielte Spinaceto"]
+const SEDI_STORAGE_KEY = "presenze_sedi"
+
+function getStoredSedi(){
+  try{
+    const sedi = JSON.parse(localStorage.getItem(SEDI_STORAGE_KEY) || "[]")
+    const validSedi = Array.isArray(sedi) ? sedi.map(s => String(s || "").trim()).filter(Boolean) : []
+    return validSedi.length ? [...new Set(validSedi)] : DEFAULT_SEDI
+  }catch(err){
+    console.warn("SEDI STORAGE ERROR", err)
+    return DEFAULT_SEDI
+  }
+}
+
+function renderSedeOptions(selectedValue){
+  const sedeSelect = qs("sede")
+  if(!sedeSelect) return
+
+  const sedi = getStoredSedi()
+  const currentValue = selectedValue || sedeSelect.value || sedi[0] || ""
+  sedeSelect.innerHTML = ""
+
+  sedi.forEach(sede => {
+    const option = document.createElement("option")
+    option.value = sede
+    option.textContent = sede
+    sedeSelect.appendChild(option)
+  })
+
+  if(currentValue && !sedi.includes(currentValue)){
+    const option = document.createElement("option")
+    option.value = currentValue
+    option.textContent = currentValue
+    sedeSelect.appendChild(option)
+  }
+
+  if(currentValue) sedeSelect.value = currentValue
+}
+
+
 let appliedFilters = {
   month: "",
   state: "",
@@ -392,14 +432,26 @@ function openOpenRequestsView(){
 
 function openLogView(){
   if(qs("logCard")) qs("logCard").classList.remove("hidden")
-  if(qs("btnOpenLog")) qs("btnOpenLog").classList.add("hidden")
-  if(qs("btnCloseLog")) qs("btnCloseLog").classList.remove("hidden")
+
+  const btnOpenLog = qs("btnOpenLog")
+  if(btnOpenLog){
+    btnOpenLog.textContent = "Chiudi log"
+    btnOpenLog.classList.remove("btn-blue")
+    btnOpenLog.classList.add("btn-gray")
+    btnOpenLog.onclick = closeLogView
+  }
 }
 
 function closeLogView(){
   if(qs("logCard")) qs("logCard").classList.add("hidden")
-  if(qs("btnOpenLog")) qs("btnOpenLog").classList.remove("hidden")
-  if(qs("btnCloseLog")) qs("btnCloseLog").classList.add("hidden")
+
+  const btnOpenLog = qs("btnOpenLog")
+  if(btnOpenLog){
+    btnOpenLog.textContent = "LOG"
+    btnOpenLog.classList.remove("btn-gray")
+    btnOpenLog.classList.add("btn-blue")
+    btnOpenLog.onclick = openLogView
+  }
 }
 
 function todayISO(){
@@ -595,6 +647,7 @@ async function showApp(user){
     const adminFilterWrap = qs("adminFilterWrap")
     const filterNameWrap = qs("filterNameWrap")
     const btnManageUsers = qs("btnManageUsers")
+    const btnManageSedi = qs("btnManageSedi")
     const adminSupportCard = qs("adminSupportCard")
 
     if(loginBox) loginBox.classList.add("hidden")
@@ -622,10 +675,15 @@ async function showApp(user){
       btnManageUsers.classList.toggle("hidden", !isAdmin)
     }
 
+    if(btnManageSedi){
+      btnManageSedi.classList.toggle("hidden", !isAdmin)
+    }
+
     if(adminSupportCard){
       adminSupportCard.classList.toggle("hidden", !isAdmin)
     }
 
+    renderSedeOptions()
     clearForm()
     openOpenRequestsView()
     closeLogView()
@@ -1319,7 +1377,7 @@ function editPresenza(id){
   if(qs("stato")) qs("stato").value = r.stato || "Presente"
   if(qs("ore")) qs("ore").value = r.ore ?? 0
   if(qs("oreExtra")) qs("oreExtra").value = r.ore_extra ?? 0
-  if(qs("sede")) qs("sede").value = r.sede || "Sielte Pomezia"
+  renderSedeOptions(r.sede || "Sielte Pomezia")
   if(qs("note")) qs("note").value = r.note || ""
 
   if(qs("formTitle")) qs("formTitle").textContent = "Modifica presenza"
@@ -1340,7 +1398,7 @@ function clearForm(){
   if(qs("stato")) qs("stato").value = "Presente"
   if(qs("ore")) qs("ore").value = "0"
   if(qs("oreExtra")) qs("oreExtra").value = "0"
-  if(qs("sede")) qs("sede").value = "Sielte Pomezia"
+  renderSedeOptions("Sielte Pomezia")
   if(qs("note")) qs("note").value = ""
 }
 
@@ -1704,6 +1762,10 @@ function goManageUsers(){
   window.location.href = "/users.html"
 }
 
+function goManageSedi(){
+  window.location.href = "/sede.html"
+}
+
 function bindEvents(){
   if(qs("btnTogglePassword")) qs("btnTogglePassword").onclick = togglePasswordVisibility
 
@@ -1722,10 +1784,10 @@ function bindEvents(){
 
   if(qs("btnLogout")) qs("btnLogout").onclick = logout
   if(qs("btnManageUsers")) qs("btnManageUsers").onclick = goManageUsers
+  if(qs("btnManageSedi")) qs("btnManageSedi").onclick = goManageSedi
   if(qs("btnOpenClosedRequests")) qs("btnOpenClosedRequests").onclick = openClosedRequestsView
   if(qs("btnBackToOpenRequests")) qs("btnBackToOpenRequests").onclick = openOpenRequestsView
   if(qs("btnOpenLog")) qs("btnOpenLog").onclick = openLogView
-  if(qs("btnCloseLog")) qs("btnCloseLog").onclick = closeLogView
 
   if(qs("saveBtn")) qs("saveBtn").onclick = savePresenza
   if(qs("cancelEditBtn")) qs("cancelEditBtn").onclick = cancelEdit
