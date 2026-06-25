@@ -431,27 +431,7 @@ function openOpenRequestsView(){
 }
 
 function openLogView(){
-  if(qs("logCard")) qs("logCard").classList.remove("hidden")
-
-  const btnOpenLog = qs("btnOpenLog")
-  if(btnOpenLog){
-    btnOpenLog.textContent = "Chiudi log"
-    btnOpenLog.classList.remove("btn-blue")
-    btnOpenLog.classList.add("btn-gray")
-    btnOpenLog.onclick = closeLogView
-  }
-}
-
-function closeLogView(){
-  if(qs("logCard")) qs("logCard").classList.add("hidden")
-
-  const btnOpenLog = qs("btnOpenLog")
-  if(btnOpenLog){
-    btnOpenLog.textContent = "LOG"
-    btnOpenLog.classList.remove("btn-gray")
-    btnOpenLog.classList.add("btn-blue")
-    btnOpenLog.onclick = openLogView
-  }
+  window.location.href = "/log.html"
 }
 
 function todayISO(){
@@ -686,13 +666,18 @@ async function showApp(user){
     renderSedeOptions()
     clearForm()
     openOpenRequestsView()
-    closeLogView()
 
     if(qs("filterMonth") && !qs("filterMonth").value){
       qs("filterMonth").value = currentMonthValue()
     }
 
     await loadPresenze()
+
+    const pendingEditId = sessionStorage.getItem("presenze_edit_id")
+    if(pendingEditId){
+      sessionStorage.removeItem("presenze_edit_id")
+      editPresenza(pendingEditId)
+    }
 
     if(isAdmin){
       await loadSupportRequests()
@@ -1827,7 +1812,6 @@ window.deletePresenza = deletePresenza
 window.addEventListener("DOMContentLoaded", async () => {
   bindEvents()
   clearForm()
-  closeLogView()
   openOpenRequestsView()
 
   if(qs("filterMonth")) qs("filterMonth").value = currentMonthValue()
