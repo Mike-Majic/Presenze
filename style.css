@@ -626,3 +626,27 @@ button:disabled{
   width:min(100%, 560px);
   margin:0;
 }
+
+.topbar-actions{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(116px, 1fr));
+  gap:10px;
+  max-width:500px;
+}
+
+.topbar-actions > button{
+  flex:none;
+  min-width:0;
+  padding:11px 12px;
+}
+
+.sedi-table{
+  min-width:520px;
+}
+
+@media (max-width:700px){
+  .topbar-actions{
+    grid-template-columns:1fr;
+    max-width:none;
+  }
+}
